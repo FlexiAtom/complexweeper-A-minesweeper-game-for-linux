@@ -31,6 +31,8 @@ const IDM_ZOOM2: usize = 111;
 const IDM_ZOOM3: usize = 112;
 const IDM_HELP_HOW: usize = 200;
 const IDM_BEST: usize = 106;
+/// 「颜色」开关（默认开 = 彩色贴图；关掉用黑白贴图）
+const IDM_COLOR: usize = 108;
 /// 「声音」开关（默认开，勾选态就是开着）
 const IDM_SOUND: usize = 107;
 const IDM_HELP_ABOUT: usize = 202;
@@ -72,6 +74,10 @@ var atlas_dc: w.HDC = null;
 var atlas_bmp: w.HBITMAP = null;
 var atlas_old: w.HGDIOBJ = null;
 var atlas_pixels: [*]u8 = undefined;
+/// 黑白贴图（生成器压成灰度 1 字节/像素，这里展开成 32bpp DIB）
+var atlas_bw_dc: w.HDC = null;
+var atlas_bw_bmp: w.HBITMAP = null;
+var atlas_bw_old: w.HGDIOBJ = null;
 var face_down = false;
 /// 这次左键按下是不是"落在人脸按钮上"的：只有按下与松开都在脸上才重开
 var face_armed = false;
@@ -274,6 +280,12 @@ fn draw3d(dc: w.HDC, x: i32, y: i32, cw: i32, ch: i32, t: i32, raised: bool) voi
 }
 
 /// 方形贴图（格子 16×16、图标 16×16、人脸 24×24）的简写
+/// 当前该用哪份图集：颜色关掉就用黑白那份（没加载成功就退回彩色）
+fn activeAtlas() w.HDC {
+    if (color_off and atlas_bw_dc != null) return atlas_bw_dc;
+    return atlas_dc;
+}
+
 fn blitSpriteSq(dc: w.HDC, sprite: u16, x: i32, y: i32, size: i32) void {
     blitSprite(dc, sprite, x, y, size, size);
 }
@@ -282,9 +294,9 @@ fn blitSpriteSq(dc: w.HDC, sprite: u16, x: i32, y: i32, size: i32) void {
 fn blitSprite(dc: w.HDC, sprite: u16, x: i32, y: i32, dw: i32, dh: i32) void {
     const r = A.rect(sprite);
     if (dw == r.w and dh == r.h) {
-        _ = w.BitBlt(dc, x, y, dw, dh, atlas_dc, r.x, r.y, w.SRCCOPY);
+        _ = w.BitBlt(dc, x, y, dw, dh, activeAtlas(), r.x, r.y, w.SRCCOPY);
     } else {
-        _ = w.StretchBlt(dc, x, y, dw, dh, atlas_dc, r.x, r.y, r.w, r.h, w.SRCCOPY);
+        _ = w.StretchBlt(dc, x, y, dw, dh, activeAtlas(), r.x, r.y, r.w, r.h, w.SRCCOPY);
     }
 }
 
@@ -397,6 +409,8 @@ var over_sound_done: bool = false;
 var tick_second: i32 = -1;
 /// 命令行里除了 exe 路径之外的参数个数（0 = 用户双击运行 → 要出声）
 var arg_count: usize = 0;
+/// 用户在「游戏 → 颜色」里关掉颜色了吗（默认开着 = 用彩色贴图；关掉 = 用黑白贴图）
+var color_off: bool = false;
 /// 强制静音：自检/抓图/导出这些非交互模式一律静音（逻辑照跑、计数照记，只是不真的放音）
 var sound_muted: bool = false;
 /// 用户在「游戏 → 声音」里关掉的（默认开着）。它和 sound_muted 是两回事：
@@ -435,6 +449,37 @@ fn loadSoundPref() void {
     if (w.RegQueryValueExW(hkey, w.wstr("Sound"), null, &kind, @ptrCast(&data), &size) == w.ERROR_SUCCESS) {
         sound_off = (data == 0);
     }
+}
+
+/// 颜色偏好（Color = 1 彩色 / 0 黑白；没这一项就是 1）
+fn loadColorPref() void {
+    if (!scores_persist) return;
+    var hkey: usize = 0;
+    if (w.RegOpenKeyExW(w.HKEY_CURRENT_USER, w.wstr(REG_PATH), 0, w.KEY_READ, &hkey) != w.ERROR_SUCCESS) return;
+    defer _ = w.RegCloseKey(hkey);
+    var data: u32 = 1;
+    var size: u32 = @sizeOf(u32);
+    var kind: u32 = 0;
+    if (w.RegQueryValueExW(hkey, w.wstr("Color"), null, &kind, @ptrCast(&data), &size) == w.ERROR_SUCCESS) {
+        color_off = (data == 0);
+    }
+}
+
+fn saveColorPref() void {
+    if (!scores_persist) return;
+    var hkey: usize = 0;
+    if (w.RegCreateKeyExW(w.HKEY_CURRENT_USER, w.wstr(REG_PATH), 0, null, w.REG_OPTION_NON_VOLATILE, w.KEY_WRITE, null, &hkey, null) != w.ERROR_SUCCESS) return;
+    defer _ = w.RegCloseKey(hkey);
+    const v: u32 = if (color_off) 0 else 1;
+    _ = w.RegSetValueExW(hkey, w.wstr("Color"), 0, w.REG_DWORD, @ptrCast(&v), @sizeOf(u32));
+}
+
+/// 菜单里点一下「颜色」：彩色 ↔ 黑白
+fn toggleColor(hwnd: w.HWND) void {
+    color_off = !color_off;
+    saveColorPref();
+    checkMenu();
+    _ = w.InvalidateRect(hwnd, null, 0);
 }
 
 fn saveSoundPref() void {
@@ -684,7 +729,7 @@ fn repaint(hwnd: w.HWND) void {
 /// 窗口标题固定不变（难度、局面信息都不往标题里塞）
 const APP_TITLE = "复扫雷 Complexweeper";
 /// 版本号：**只有这一处**。以后每次改动都顺手把它 +1，关于对话框与两个自检报告的抬头都读它。
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.3.0";
 
 // ------------------------------------------------------------------ 棋盘交互
 fn cellAt(L: Layout, px: i32, py: i32) i32 {
@@ -1440,6 +1485,7 @@ fn handleCommand(hwnd: w.HWND, id: usize) void {
         },
         IDM_BEST => showBestScores(false, .complex),
         IDM_SOUND => toggleSound(hwnd),
+        IDM_COLOR => toggleColor(hwnd),
         IDM_HYPER_BEST => showBestScores(false, .hyper),
         IDM_EXIT => _ = w.DestroyWindow(hwnd),
         IDM_ZOOM1, IDM_ZOOM2, IDM_ZOOM3 => {
@@ -1538,7 +1584,8 @@ fn buildMenu() w.HMENU {
     _ = w.AppendMenuW(game_menu, w.MF.POPUP, @intFromPtr(hyper_menu), w.wstr("双曲复数模式（闵可夫斯基模式）(&M)"));
 
     _ = w.AppendMenuW(game_menu, w.MF.SEPARATOR, 0, null);
-    // 声音开关：勾选态 = 开着（默认开，点一下关）。用 RADIOCHECK 让 XP 主题画成圆点
+    // 颜色开关：勾选态 = 彩色（默认开），点一下换成黑白贴图。声音开关同理
+    _ = w.AppendMenuW(game_menu, w.MF.STRING, IDM_COLOR, w.wstr("颜色(&Y)"));
     _ = w.AppendMenuW(game_menu, w.MF.STRING, IDM_SOUND, w.wstr("声音(&S)"));
     _ = w.AppendMenuW(game_menu, w.MF.STRING, IDM_ZOOM1, w.wstr("缩放 100%"));
     _ = w.AppendMenuW(game_menu, w.MF.STRING, IDM_ZOOM2, w.wstr("缩放 200%"));
@@ -1561,6 +1608,15 @@ const MODE_MENU_INDEX = [2]i32{ 2, 3 };
 /// 菜单圆点：只有"当前模式 + 当前难度"那一项是选中态（另一个模式的同名档位不勾），
 /// 自定义棋盘或者界面还没定过档位时三档全部落空。
 /// 用 CheckMenuRadioItem 画出来的是圆点（原版扫雷那样），不是对勾。
+/// 给某一项打/清单选点（开着 = 圆点，关掉 = 什么都没有）
+fn radioCheck(menu: w.HMENU, id: usize, on: bool) void {
+    if (on) {
+        _ = w.CheckMenuRadioItem(menu, @intCast(id), @intCast(id), @intCast(id), w.MF.BYCOMMAND);
+    } else {
+        _ = w.CheckMenuItem(menu, @intCast(id), w.MF.BYCOMMAND);
+    }
+}
+
 fn checkMenu() void {
     if (hwnd_main == null) return;
     const bar = w.GetMenu(hwnd_main);
@@ -1579,13 +1635,10 @@ fn checkMenu() void {
             while (i < 3) : (i += 1) _ = w.CheckMenuItem(sub, @intCast(i), w.MF.BYPOSITION);
         }
     }
-    // 声音开关：开着就用单选点画成 XP 那种"被选中的圆点"，关掉整个清掉（圆点消失）。
+    // 颜色/声音两个开关：开着就用单选点画成 XP 那种"被选中的圆点"，关掉整个清掉（圆点消失）。
     // 注意 CheckMenuItem 画的是对勾，CheckMenuRadioItem 画的才是圆点，这里要圆点。
-    if (sound_off) {
-        _ = w.CheckMenuItem(game_menu, IDM_SOUND, w.MF.BYCOMMAND);
-    } else {
-        _ = w.CheckMenuRadioItem(game_menu, IDM_SOUND, IDM_SOUND, IDM_SOUND, w.MF.BYCOMMAND);
-    }
+    radioCheck(game_menu, IDM_COLOR, !color_off);
+    radioCheck(game_menu, IDM_SOUND, !sound_off);
 }
 
 // ------------------------------------------------------------------ 图集
@@ -1658,6 +1711,43 @@ fn loadAtlas() bool {
     @memcpy(atlas_pixels[0..need], blob[pix_off .. pix_off + need]);
     atlas_dc = w.CreateCompatibleDC(null);
     atlas_old = w.SelectObject(atlas_dc, atlas_bmp);
+    return loadBwAtlas();
+}
+
+/// 黑白贴图：blob_bw 是"CSBW"容器里的灰度平面（1 字节/像素），展开成同样尺寸的 32bpp DIB。
+/// 没这份素材时就当没有黑白贴图（颜色开关仍然在，只是关掉后还是彩色）。
+fn loadBwAtlas() bool {
+    const bw = A.blob_bw;
+    if (bw.len < 12) return true;
+    if (!(bw[0] == 'C' and bw[1] == 'S' and bw[2] == 'B' and bw[3] == 'W')) return true;
+    const g_w: i32 = @intCast(@as(u16, bw[6]) | (@as(u16, bw[7]) << 8));
+    const g_h: i32 = @intCast(@as(u16, bw[8]) | (@as(u16, bw[9]) << 8));
+    if (g_w != @as(i32, A.atlas_w) or g_h != @as(i32, A.atlas_h)) return true;
+    const need: usize = @as(usize, @intCast(g_w)) * @as(usize, @intCast(g_h));
+    if (bw.len < 12 + need) return true;
+    var bi: w.BITMAPINFO = std.mem.zeroes(w.BITMAPINFO);
+    bi.bmiHeader.biSize = @sizeOf(w.BITMAPINFOHEADER);
+    bi.bmiHeader.biWidth = g_w;
+    bi.bmiHeader.biHeight = -g_h;
+    bi.bmiHeader.biPlanes = 1;
+    bi.bmiHeader.biBitCount = 32;
+    bi.bmiHeader.biCompression = w.BI_RGB;
+    var bits: ?*anyopaque = null;
+    const scr = w.GetDC(null);
+    atlas_bw_bmp = w.CreateDIBSection(scr, &bi, w.DIB_RGB_COLORS, &bits, null, 0);
+    _ = w.ReleaseDC(null, scr);
+    if (atlas_bw_bmp == null or bits == null) return true;
+    const px: [*]u8 = @ptrCast(bits.?);
+    var i: usize = 0;
+    while (i < need) : (i += 1) {
+        const v = bw[12 + i];
+        px[i * 4] = v;
+        px[i * 4 + 1] = v;
+        px[i * 4 + 2] = v;
+        px[i * 4 + 3] = 255;
+    }
+    atlas_bw_dc = w.CreateCompatibleDC(null);
+    atlas_bw_old = w.SelectObject(atlas_bw_dc, atlas_bw_bmp);
     return true;
 }
 
@@ -2019,6 +2109,7 @@ pub fn main() void {
     if (hwnd_main == null) return;
     loadScores();
     loadSoundPref();
+    loadColorPref();
     checkMenu();
 
     if (uitestPath()) |p| {
@@ -2345,6 +2436,19 @@ pub fn testPopupItemChecked(top: i32, idx: i32) bool {
     return (st & w.MF.CHECKED) != 0;
 }
 pub const test_IDM_SOUND = IDM_SOUND;
+pub const test_IDM_COLOR = IDM_COLOR;
+/// 用户在菜单里关掉颜色了吗
+pub fn testColorOff() bool {
+    return color_off;
+}
+/// 现在贴图用的是黑白那份图集吗（勾着"颜色"时应当是 false）
+pub fn testActiveAtlasIsBw() bool {
+    return activeAtlas() == atlas_bw_dc and atlas_bw_dc != null;
+}
+/// 黑白图集加载成功了吗（有素材且尺寸对）
+pub fn testBwAtlasLoaded() bool {
+    return atlas_bw_dc != null and atlas_bw_bmp != null;
+}
 /// 两套纪录键名确实是两套（防"加了模式却忘了换键"）
 pub fn testScoreKeysDiffer() bool {
     for (0..3) |i| {

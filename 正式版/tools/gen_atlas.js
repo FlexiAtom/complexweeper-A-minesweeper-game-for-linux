@@ -26,6 +26,9 @@ const binPath = argValue('--out-bin') ? path.resolve(argValue('--out-bin')) : pa
 const zigPath = argValue('--out-zig') ? path.resolve(argValue('--out-zig')) : path.join(outDir, 'src', 'assets.zig');
 const PACKED_PNG = path.join(assetDir, '图集.png');
 const PACKED_JSON = path.join(assetDir, '图集.json');
+// 黑白贴图（可选）：同一套尺寸与槽位，只是画成黑白。作者可以单独画一张放这儿
+const BW_PNG = path.join(assetDir, '图集黑白.png');
+const BW_BIN = path.join(outDir, 'src', 'atlas_bw.bin');
 
 /* ---------------- 最小 PNG 解码（够用即可：支持 8 位 RGBA / RGB / 调色板） ---------------- */
 function readPNG(file){
@@ -187,6 +190,55 @@ if (healed) {
   console.log(`槽位里的透明像素按底色补实了 ${healed} 个：${list}（GDI 不看 alpha，不补会画成黑点）`);
 }
 
+/* ---------------- 黑白贴图（灰度，1 字节/像素） ---------------- */
+/* 作者可以画一张同尺寸的黑白图集；没画或者导出成空图，就退回"把彩色图集去饱和"。
+   去饱和用 Rec.601 亮度公式；槽位内 alpha<255 的像素按底色 192 补实（和彩色图集同一条规则）。 */
+const grayOf = (r, g, b) => Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+let bwGray = new Uint8Array(W * H);
+let bwSource = '去饱和（彩色图集）';
+{
+  let custom = null;
+  if (fs.existsSync(BW_PNG)) {
+    const im = readPNG(BW_PNG);
+    if (im.w !== W || im.h !== H) throw new Error(`图集黑白.png 尺寸不对：${im.w}×${im.h}，应为 ${W}×${H}`);
+    let opaque = 0;
+    for (let i = 0; i < im.w * im.h; i++) if (im.rgba[i * 4 + 3] > 0) opaque += 1;
+    if (opaque > 0) custom = im;
+    else console.log('图集黑白.png 整张是全透明的空图（0 个不透明像素）→ 这次先退回"彩色图集去饱和"，请重新导出');
+  } else {
+    console.log('没有 图集黑白.png → 黑白贴图由彩色图集去饱和生成');
+  }
+  for (const p of placed) {
+    for (let ry = 0; ry < p.h; ry++) {
+      for (let rx = 0; rx < p.w; rx++) {
+        const o = (ry * p.w + rx) * 4;
+        let r = p.im.rgba[o], g = p.im.rgba[o + 1], b = p.im.rgba[o + 2];
+        let a = p.im.rgba[o + 3];
+        if (custom) {
+          const q = ((p.y + ry) * custom.w + (p.x + rx)) * 4;
+          r = custom.rgba[q]; g = custom.rgba[q + 1]; b = custom.rgba[q + 2]; a = custom.rgba[q + 3];
+        }
+        if (p.name !== 'icon' && a < 255) {           // 和彩色图集一样：槽位内的透明按底色补实
+          const t = a / 255;
+          r = Math.round(r * t + 192 * (1 - t));
+          g = Math.round(g * t + 192 * (1 - t));
+          b = Math.round(b * t + 192 * (1 - t));
+        }
+        bwGray[(p.y + ry) * W + (p.x + rx)] = grayOf(r, g, b);
+      }
+    }
+  }
+  if (custom) bwSource = '图集黑白.png';
+  const head = Buffer.alloc(12);
+  head.write('CSBW', 0, 'ascii');
+  head.writeUInt16LE(1, 4);
+  head.writeUInt16LE(W, 6);
+  head.writeUInt16LE(H, 8);
+  head.writeUInt16LE(bwGray.length & 0xffff, 10);
+  fs.writeFileSync(BW_BIN, Buffer.concat([head, Buffer.from(bwGray)]));
+  console.log(`黑白贴图：来源 ${bwSource}，灰度 ${W}×${H}，bin ${fs.statSync(BW_BIN).size} 字节`);
+}
+
 /* ---------------- 写出 atlas.bin ---------------- */
 const header = Buffer.alloc(12 + placed.length * 8);
 header.write('CSAT', 0, 'ascii');
@@ -209,6 +261,8 @@ lines.push('// 本文件由 tools/gen_atlas.js 自动生成，不要手改。');
 lines.push('// 图集来自 素材/ 目录，格式见 tools/gen_atlas.js 顶部注释。');
 lines.push('');
 lines.push('pub const blob = @embedFile("atlas.bin");');
+lines.push('/// 黑白贴图（灰度，1 字节/像素，格式 CSBW）：\"颜色\"关掉时用它');
+lines.push('pub const blob_bw = @embedFile("atlas_bw.bin");');
 lines.push('pub const atlas_w: u16 = ' + W + ';');
 lines.push('pub const atlas_h: u16 = ' + H + ';');
 lines.push('pub const count: u16 = ' + placed.length + ';');

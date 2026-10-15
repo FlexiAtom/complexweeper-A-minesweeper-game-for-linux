@@ -894,7 +894,7 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
 // 14a 菜单结构：游戏菜单 = 开局、分隔线、圆复数模式▸、闵可夫斯基模式▸、分隔线、纪录、分隔线、三个缩放、分隔线、退出
         expect(out, ui.testPopupItemId(0, 0) == @as(i32, @intCast(ui.test_IDM_NEW)), "游戏菜单第一项应是开局");
         expect(out, ui.testPopupItemId(0, 1) == 0, "游戏菜单第二项应是分隔线（ID 0）");
-        expect(out, ui.testPopupCount(0) == 11, "游戏菜单顶层应是 11 项（开局/分隔线/两个模式/分隔线/声音/三个缩放/分隔线/退出）");
+        expect(out, ui.testPopupCount(0) == 12, "游戏菜单顶层应是 12 项（开局/分隔线/两个模式/分隔线/颜色/声音/三个缩放/分隔线/退出）");
         expect(out, ui.testSubItemId(0, 2, 0) == @as(i32, @intCast(ui.test_IDM_BEGINNER)), "圆复数模式子菜单第一项应是初级");
         expect(out, ui.testSubItemId(0, 2, 2) == @as(i32, @intCast(ui.test_IDM_EXPERT)), "圆复数模式子菜单第三项应是高级");
         expect(out, ui.testSubItemId(0, 2, 3) == 0, "圆复数模式子菜单第四项应是分隔线（ID 0）");
@@ -1109,22 +1109,40 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
 // 16) 声音开关：菜单里一行，点一下翻转，圆点跟着翻转
     {
         // 游戏菜单顶层：开局/分隔线/两个模式/分隔线/声音/三个缩放/分隔线/退出
-        expect(out, ui.testPopupCount(0) == 11, "游戏菜单顶层应是 11 项（多出「声音」这一行）");
-        expect(out, ui.testPopupItemId(0, 5) == @as(i32, @intCast(ui.test_IDM_SOUND)), "「声音」应在两个模式之后（第 6 项）");
-        expect(out, ui.testPopupItemId(0, 6) == @as(i32, @intCast(ui.test_IDM_ZOOM1)), "「声音」后面接着三个缩放");
+        expect(out, ui.testPopupCount(0) == 12, "游戏菜单顶层应是 12 项（多出「颜色」「声音」两行）");
+        expect(out, ui.testPopupItemId(0, 6) == @as(i32, @intCast(ui.test_IDM_SOUND)), "「声音」应在两个模式与「颜色」之后（第 7 项）");
+        expect(out, ui.testPopupItemId(0, 7) == @as(i32, @intCast(ui.test_IDM_ZOOM1)), "「声音」后面接着三个缩放");
         // 起手状态取决于本机存着的偏好（默认是没有这一项 = 开），所以这里只验"翻转"，
         // 不去假设机器上一定是开的——否则换台机器、或者上次关过声音，自检就红了。
         const was_off = ui.testSoundOff();
-        expect(out, ui.testPopupItemChecked(0, 5) == !was_off, "菜单圆点应反映当前状态（开着才有圆点）");
+        expect(out, ui.testPopupItemChecked(0, 6) == !was_off, "菜单圆点应反映当前状态（开着才有圆点）");
         ui.testCommand(ui.test_IDM_SOUND);
         expect(out, ui.testSoundOff() != was_off, "点一下应把开关翻过来");
-        expect(out, ui.testPopupItemChecked(0, 5) == was_off, "翻过来后圆点状态也跟着翻");
+        expect(out, ui.testPopupItemChecked(0, 6) == was_off, "翻过来后圆点状态也跟着翻");
         ui.testCommand(ui.test_IDM_SOUND);
         expect(out, ui.testSoundOff() == was_off, "再点一下应还原");
-        expect(out, ui.testPopupItemChecked(0, 5) == !was_off, "圆点也应还原");
+        expect(out, ui.testPopupItemChecked(0, 6) == !was_off, "圆点也应还原");
         expect(out, ui.testSoundMuted(), "自检进程仍然是强制静音状态（用户开关不影响这一层）");
         expect(out, !ui.testAudible(), "自检进程无论如何都不出声");
         out.writer().print("16 声音开关：点一下翻转（圆点跟着翻转）/ 再点还原 通过\n", .{}) catch {};
+    }
+
+// 17) 颜色开关：勾选态 = 彩色贴图；关掉改用黑白贴图（菜单圆点与图集一起翻）
+    {
+        expect(out, ui.testPopupItemId(0, 5) == @as(i32, @intCast(ui.test_IDM_COLOR)), "第 6 项应是「颜色」");
+        expect(out, ui.testBwAtlasLoaded(), "黑白图集应加载成功（由 素材/图集黑白.png 生成的灰度图）");
+        // 起手状态取决于本机存的偏好（默认没有这一项 = 彩色），所以只验翻转与图集切换
+        const mono = ui.testColorOff();
+        expect(out, ui.testPopupItemChecked(0, 5) == !mono, "颜色勾选态应反映当前状态（彩色才有圆点）");
+        expect(out, ui.testActiveAtlasIsBw() == mono, "贴图该用哪份图集要跟颜色开关一致");
+        ui.testCommand(ui.test_IDM_COLOR);
+        expect(out, ui.testColorOff() != mono, "点一下应把颜色开关翻过来");
+        expect(out, ui.testPopupItemChecked(0, 5) == mono, "翻过来后圆点也跟着翻");
+        expect(out, ui.testActiveAtlasIsBw() != mono, "翻过来后贴图图集也应跟着换");
+        ui.testCommand(ui.test_IDM_COLOR);
+        expect(out, ui.testColorOff() == mono, "再点一下应还原");
+        expect(out, ui.testActiveAtlasIsBw() == mono, "图集也应还原");
+        out.writer().print("17 颜色开关：勾选=彩色贴图 / 取消=黑白贴图，圆点与图集同步 通过\n", .{}) catch {};
     }
 
     out.writer().print("\n断言 {d} 项，失败 {d} 项\n", .{ checks, fails }) catch {};

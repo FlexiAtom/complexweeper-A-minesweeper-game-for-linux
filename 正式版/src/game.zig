@@ -1,4 +1,4 @@
-// 复扫雷 · 规则与状态（不碰 Win32，可单独自检）
+// 规则和状态
 const std = @import("std");
 
 pub const MAX_W: usize = 40;
@@ -7,23 +7,21 @@ pub const MAX_CELLS: usize = MAX_W * MAX_H;
 pub const MAX_MINES: usize = 999;
 
 /// 四种雷：(实部, 虚部)。两个模式共用这四种雷，只换单位：
-///   圆复数模式   i² = −1：+1、−1、+i、−i，显示值 a² + b²（恒非负）
-///   闵可夫斯基模式   j² = +1：+1、−1、+j、−j，显示值 a² − b²（可负，负的显示成"根式 + i 单位"）
+///   圆复数模式 i² = −1：+1、−1、+i、−i；闵可夫斯基模式 j² = +1：+1、−1、+j、−j；
 pub const TYPES = [4][2]i32{ .{ 1, 0 }, .{ -1, 0 }, .{ 0, 1 }, .{ 0, -1 } };
 /// 玩法模式
 pub const Mode = enum(u8) { complex = 0, hyper = 1 };
-/// 24 个可能的显示值（圆复数模式）
+/// 圆复数模式里的24个可能的显示平方值
 pub const ACHIEVABLE = [24]u16{ 0, 1, 2, 4, 5, 8, 9, 10, 13, 16, 17, 18, 20, 25, 26, 29, 32, 34, 36, 37, 40, 49, 50, 64 };
 
 pub const Preset = struct { w: u16, h: u16, mines: u16, label: []const u8 };
-/// 标准三档
 pub const PRESETS = [3]Preset{
     .{ .w = 9, .h = 9, .mines = 10, .label = "初级 9×9 · 10 雷" },
     .{ .w = 16, .h = 16, .mines = 40, .label = "中级 16×16 · 40 雷" },
     .{ .w = 30, .h = 16, .mines = 99, .label = "高级 30×16 · 99 雷" },
 };
 
-/// 上一次操作的反馈（文案在界面层）
+/// 操作反馈
 pub const Msg = enum(u8) {
     none = 0,
     started,
@@ -33,7 +31,7 @@ pub const Msg = enum(u8) {
     lose,
 };
 
-/// mulberry32：与 demo 版一致，同种子同棋盘
+/// mulberry32种子
 pub const Rng = struct {
     a: u32,
     pub fn init(seed: u32) Rng {
@@ -56,9 +54,9 @@ pub const Game = struct {
     w: u16 = 9,
     h: u16 = 9,
     n: usize = 81,
-/// 当前玩法模式（newGame 不动它：模式是设置，不是局面的一部分）
+/// 当前玩法模式
     mode: Mode = .complex,
-/// 闵可夫斯基模式的判据取"备选"（更宽）那一档：只要求 a²−b² 与旗数相同。
+/// 闵可夫斯基模式的判据取备选
 /// 默认 false = 推荐判据（|a|、|b| 分别相符，即四种符号组合任选）。见 文档/双曲复数模式.md §3。
     judge_loose: bool = false,
     mine: [MAX_CELLS]u8 = [_]u8{0} ** MAX_CELLS,
@@ -312,7 +310,7 @@ pub const Game = struct {
         while (sp > 0) {
             sp -= 1;
             const i = stack[sp];
-// 插了旗的格子，连片也绕开
+// 插旗格连片绕开
             if (self.open[i] != 0 or self.mine[i] != 0 or self.flag[i] != 0) continue;
             self.open[i] = 1;
             opened += 1;
