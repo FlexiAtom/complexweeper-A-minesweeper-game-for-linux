@@ -2,8 +2,8 @@
 
 本仓库的图像素材分两类，授权状态不同。转载、再发布或商用之前请读一遍这张表。
 
-素材现在只有一份：`assets/atlas.png`（208×207 的整图）+ `assets/atlas.json`（槽位表）。
-下面用槽位名指认具体是哪几张。
+图集有两份同槽位的版本：`assets/atlas.png`（彩色）与 `assets/atlas-bw.png`（黑白），
+均为 208×207 的整图；`assets/atlas.json` 是槽位表。下面用槽位名指认具体是哪几张。
 
 ## 一、扫雷原始图像素材 —— 权利属于 Microsoft
 
@@ -42,6 +42,12 @@
 
 `assets/sounds/` 里的 wav 原件留在本机，不随仓库发布；
 要改音效就用 `node tools/gen_sounds.js --extract <目录>` 把内嵌的六段导出来。
+
+## 四、第三方运行库
+
+程序动态链接 [SDL3](https://github.com/libsdl-org/SDL) 与
+[SDL3_ttf](https://github.com/libsdl-org/SDL_ttf)，两者均按 zlib 许可证发布；
+Windows 发行包会附带对应的运行库 DLL。程序不附带字体文件，界面文字使用系统安装的中文字体。
 
 ## 商标
 
