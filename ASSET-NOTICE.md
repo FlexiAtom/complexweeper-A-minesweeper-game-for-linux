@@ -43,11 +43,21 @@
 `assets/sounds/` 里的 wav 原件留在本机，不随仓库发布；
 要改音效就用 `node tools/gen_sounds.js --extract <目录>` 把内嵌的六段导出来。
 
-## 四、第三方运行库
+## 四、字体 —— SIL Open Font License 1.1
+
+界面字体使用 **Noto Sans CJK SC** 的子集，已嵌入程序二进制（`src/font_subset.otf`）。
+源字体来自 <https://github.com/notofonts/noto-cjk>（commit
+`f8d157532fbfaeda587e826d4cd5b21a49186f7c` 的
+`Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf`），按 SIL Open Font License 1.1
+发布；许可证全文见 `assets/fonts/OFL.txt`，发行包中随附为 `FONT-OFL.txt`。
+子集只保留界面实际用到的字符，由 `tools/make_font_subset.py` 生成。系统字体仅在子集缺字时
+作为后备，不再是运行必需。
+
+## 五、第三方运行库
 
 程序动态链接 [SDL3](https://github.com/libsdl-org/SDL) 与
 [SDL3_ttf](https://github.com/libsdl-org/SDL_ttf)，两者均按 zlib 许可证发布；
-Windows 发行包会附带对应的运行库 DLL。程序不附带字体文件，界面文字使用系统安装的中文字体。
+Windows 发行包会附带对应的运行库 DLL。
 
 ## 商标
 

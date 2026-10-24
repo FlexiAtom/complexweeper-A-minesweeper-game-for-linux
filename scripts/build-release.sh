@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# 本地发行构建：Linux x86_64 原生 + Windows x86_64 交叉编译，不经过 CI。
-# 依赖：Zig 0.14.1、Node.js、curl、unzip、zip、tar、sha256sum；
+# 本地发行构建：Linux x86_64 AppImage + Windows x86_64 zip，不经过 CI。
+# 依赖：Zig 0.14.1、Node.js、curl、unzip、zip、sha256sum、ldd；
 #       Linux 构建另需 pkg-config 能找到 sdl3 与 sdl3-ttf。
+# AppImage 打包会从 GitHub Releases 下载 appimagetool 并缓存到 build/appimage-tool/。
 # 可选：wine（用于运行 Windows 版自检）。
 # 用法： ./scripts/build-release.sh [--no-test]
 # 环境： ZIG=/path/to/zig  SDL_MIRROR=https://mirror/  （SDL_MIRROR 置空则直连 GitHub）
@@ -32,8 +33,8 @@ need node
 need curl
 need unzip
 need zip
-need tar
 need sha256sum
+need ldd
 got="$("$zig" version)"
 [ "$got" = "0.14.1" ] || die "Zig 版本不对：$got，本工程按 0.14.1 写"
 pkg-config --exists sdl3 sdl3-ttf 2>/dev/null ||
@@ -44,26 +45,118 @@ reports="$release/reports"
 rm -rf "$release"
 mkdir -p "$reports"
 
+download() {
+    local name="$1" url="$2" out="$3"
+    local urls=() u tmp="$out.part"
+    [ -n "$mirror" ] && urls+=("$mirror$url")
+    urls+=("$url")
+    rm -f "$tmp"
+    for u in "${urls[@]}"; do
+        echo "  下载 $name ← $u"
+        if curl -fL --retry 3 --connect-timeout 30 --max-time 900 -o "$tmp" "$u"; then
+            mv "$tmp" "$out"
+            return 0
+        fi
+        rm -f "$tmp"
+    done
+    return 1
+}
+
+# 把 ldd 列出、除 glibc 之外的共享库收进 AppImage。
+copy_runtime_libs() {
+    local bin="$1" dest="$2" lib base
+    mkdir -p "$dest"
+    while IFS= read -r lib; do
+        [ -n "$lib" ] || continue
+        base="$(basename "$lib")"
+        case "$base" in
+            libc.so.*|libm.so.*|libpthread.so.*|libdl.so.*|librt.so.*|libresolv.so.*|libnss_*|libutil.so.*|ld-linux*)
+                continue
+                ;;
+        esac
+        cp -L "$lib" "$dest/$base"
+    done < <(ldd "$bin" | awk '/=> \//{print $3} /^[[:space:]]*\/[^ ]*\.so/{print $1}' | sort -u)
+}
+
 echo "[1/4] 生成图集…"
 node tools/gen_atlas.js
 
 echo
-echo "[2/4] 构建 Linux 版…"
+echo "[2/4] 构建 Linux 版并打包 AppImage…"
 "$zig" build -Doptimize=ReleaseSmall
-linux_stage="$release/complexweeper-$version-linux-x86_64"
-mkdir -p "$linux_stage"
-cp zig-out/bin/complexweeper "$linux_stage/complexweeper"
-cp README.md README.en.md LICENSE ASSET-NOTICE.md "$linux_stage/"
 
-if [ "$no_test" -eq 0 ]; then
-    "$linux_stage/complexweeper" --selftest "$reports/selftest-linux.txt"
-    tail -n 2 "$reports/selftest-linux.txt"
-    "$linux_stage/complexweeper" --uitest "$reports/uitest-linux.txt"
-    tail -n 2 "$reports/uitest-linux.txt"
+appdir="$root/build/AppDir"
+rm -rf "$appdir"
+mkdir -p "$appdir/usr/bin" "$appdir/usr/lib" \
+    "$appdir/usr/share/applications" \
+    "$appdir/usr/share/icons/hicolor/256x256/apps" \
+    "$appdir/usr/share/doc/complexweeper"
+cp zig-out/bin/complexweeper "$appdir/usr/bin/complexweeper"
+copy_runtime_libs "$appdir/usr/bin/complexweeper" "$appdir/usr/lib"
+
+node tools/extract_icon.js "$appdir/complexweeper.png" 256
+cp "$appdir/complexweeper.png" "$appdir/usr/share/icons/hicolor/256x256/apps/complexweeper.png"
+ln -s complexweeper.png "$appdir/.DirIcon"
+cp README.md README.en.md LICENSE ASSET-NOTICE.md "$appdir/usr/share/doc/complexweeper/"
+cp assets/fonts/OFL.txt "$appdir/usr/share/doc/complexweeper/FONT-OFL.txt"
+
+cat > "$appdir/complexweeper.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Complexweeper
+Name[zh_CN]=复扫雷
+GenericName=Minesweeper
+GenericName[zh_CN]=扫雷
+Comment=A cross-platform minesweeper game
+Comment[zh_CN]=跨平台扫雷游戏
+Exec=complexweeper
+Icon=complexweeper
+Terminal=false
+Categories=Game;LogicGame;
+Keywords=minesweeper;game;扫雷;
+EOF
+cp "$appdir/complexweeper.desktop" "$appdir/usr/share/applications/complexweeper.desktop"
+if command -v desktop-file-validate >/dev/null 2>&1; then
+    desktop-file-validate "$appdir/complexweeper.desktop"
 fi
 
-tar -C "$release" -czf "$release/complexweeper-$version-linux-x86_64.tar.gz" \
-    "complexweeper-$version-linux-x86_64"
+cat > "$appdir/AppRun" <<'EOF'
+#!/bin/sh
+HERE="$(dirname "$(readlink -f "$0")")"
+export LD_LIBRARY_PATH="$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+exec "$HERE/usr/bin/complexweeper" "$@"
+EOF
+chmod +x "$appdir/AppRun"
+
+appimage_tool="$root/build/appimage-tool/appimagetool-x86_64.AppImage"
+if [ ! -x "$appimage_tool" ]; then
+    mkdir -p "$(dirname "$appimage_tool")"
+    download "appimagetool" \
+        "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" \
+        "$appimage_tool" ||
+        die "下载 appimagetool 失败；可用 SDL_MIRROR 换镜像，或手动把它放到 $appimage_tool"
+    chmod +x "$appimage_tool"
+fi
+appimage_runtime="$root/build/appimage-tool/runtime-x86_64"
+if [ ! -f "$appimage_runtime" ]; then
+    download "AppImage runtime" \
+        "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64" \
+        "$appimage_runtime" ||
+        die "下载 AppImage runtime 失败；可用 SDL_MIRROR 换镜像，或手动把它放到 $appimage_runtime"
+fi
+
+appimage="$release/complexweeper-$version-x86_64.AppImage"
+ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 "$appimage_tool" \
+    --no-appstream --runtime-file "$appimage_runtime" "$appdir" "$appimage" >/dev/null
+rm -f "$release"/*.zsync
+[ -f "$appimage" ] || die "AppImage 没有生成"
+
+if [ "$no_test" -eq 0 ]; then
+    APPIMAGE_EXTRACT_AND_RUN=1 "$appimage" --selftest "$reports/selftest-linux.txt"
+    tail -n 2 "$reports/selftest-linux.txt"
+    APPIMAGE_EXTRACT_AND_RUN=1 "$appimage" --uitest "$reports/uitest-linux.txt"
+    tail -n 2 "$reports/uitest-linux.txt"
+fi
 
 sdl_ver=3.4.18
 ttf_ver=3.2.2
@@ -74,19 +167,8 @@ fetch_dep() {
     local name="$1" url="$2" zip="$deps/$1.zip" dir="$deps/$1"
     if [ -d "$dir" ]; then return; fi
     if [ ! -f "$zip" ]; then
-        local urls=() tmp="$zip.part" u
-        [ -n "$mirror" ] && urls+=("$mirror$url")
-        urls+=("$url")
-        rm -f "$tmp"
-        for u in "${urls[@]}"; do
-            echo "  下载 $name ← $u"
-            if curl -fL --retry 3 --connect-timeout 30 --max-time 900 -o "$tmp" "$u"; then
-                mv "$tmp" "$zip"
-                break
-            fi
-            rm -f "$tmp"
-        done
-        [ -f "$zip" ] || die "下载 $name 失败；可用 SDL_MIRROR 换镜像，或手动把 $name.zip 放进 $deps"
+        download "$name" "$url" "$zip" ||
+            die "下载 $name 失败；可用 SDL_MIRROR 换镜像，或手动把 $name.zip 放进 $deps"
     fi
     mkdir -p "$dir"
     unzip -q "$zip" -d "$dir"
@@ -125,6 +207,7 @@ win_stage="$release/complexweeper-$version-win64"
 mkdir -p "$win_stage"
 cp zig-out/bin/complexweeper.exe "$win_stage/"
 cp "$sdl_dll" "$ttf_dll" "$win_stage/"
+cp assets/fonts/OFL.txt "$win_stage/FONT-OFL.txt"
 
 node tools/set_icon.js "$win_stage/complexweeper.exe" "$win_stage/complexweeper-icon.exe"
 mv "$win_stage/complexweeper-icon.exe" "$win_stage/complexweeper.exe"
@@ -155,19 +238,19 @@ echo
 echo "[4/4] 打包…"
 zip -j "$release/complexweeper-$version-win64.zip" \
     "$win_stage/complexweeper.exe" "$win_stage/SDL3.dll" "$win_stage/SDL3_ttf.dll" \
-    README.md README.en.md LICENSE ASSET-NOTICE.md >/dev/null
+    "$win_stage/FONT-OFL.txt" README.md README.en.md LICENSE ASSET-NOTICE.md >/dev/null
 
 (
     cd "$release"
     shopt -s nullglob
-    files=(*.zip *.tar.gz)
+    files=(*.zip *.AppImage)
     [ "${#files[@]}" -gt 0 ] || die "没有生成发行包"
     sha256sum "${files[@]}" > SHA256SUMS
 )
 
 echo
 echo "完成，发行包在 $release："
-ls -lh "$release"/*.zip "$release"/*.tar.gz "$release/SHA256SUMS"
+ls -lh "$release"/*.zip "$release"/*.AppImage "$release/SHA256SUMS"
 if [ "$no_test" -eq 0 ]; then
     echo "自检报告在 $reports"
 fi

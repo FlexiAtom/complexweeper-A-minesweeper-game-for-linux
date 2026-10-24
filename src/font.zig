@@ -1,11 +1,15 @@
 // 中文文字渲染：SDL3_ttf 渲染到透明 surface，再逐像素合成进软件画布。
-// 字体优先用系统 CJK 字体；没有就退到常见西文字体（会缺中文，但程序仍能启动）。
+// 优先用内置的 Noto Sans CJK 子集（src/font_subset.otf，OFL-1.1）；
+// 系统 CJK 字体只作后备，避免 Windows/Linux 各自依赖本机字体。
 const std = @import("std");
 const c = @import("sdl.zig").c;
 const cv = @import("canvas.zig");
 
+const embedded_font = @embedFile("font_subset.otf");
+
 pub const Font = struct {
     f: *c.TTF_Font,
+    io: ?*c.SDL_IOStream = null,
     cur_size: f32 = 15,
 
     const candidates = [_][:0]const u8{
@@ -25,6 +29,12 @@ pub const Font = struct {
 
     pub fn open() ?Font {
         if (!c.TTF_Init()) return null;
+        if (c.SDL_IOFromConstMem(@ptrCast(embedded_font.ptr), embedded_font.len)) |io| {
+            if (c.TTF_OpenFontIO(io, false, 15)) |f| {
+                return .{ .f = f, .io = io };
+            }
+            _ = c.SDL_CloseIO(io);
+        }
         for (candidates) |p| {
             if (c.TTF_OpenFont(p.ptr, 15)) |f| {
                 return .{ .f = f };
@@ -35,6 +45,7 @@ pub const Font = struct {
 
     pub fn close(self: *Font) void {
         c.TTF_CloseFont(self.f);
+        if (self.io) |io| _ = c.SDL_CloseIO(io);
         self.* = undefined;
     }
 

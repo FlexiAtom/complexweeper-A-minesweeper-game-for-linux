@@ -13,7 +13,7 @@ version="$(sed -n 's/.*const APP_VERSION = "\([^"]*\)".*/\1/p' src/main.zig | he
 [ -n "$version" ] || { echo "读不到 src/main.zig 里的 APP_VERSION" >&2; exit 1; }
 
 shopt -s nullglob
-assets=(build/release/*.zip build/release/*.tar.gz build/release/SHA256SUMS)
+assets=(build/release/*.zip build/release/*.AppImage build/release/SHA256SUMS)
 [ "${#assets[@]}" -gt 0 ] || { echo "没有发行包，先运行 ./scripts/build-release.sh" >&2; exit 1; }
 command -v gh >/dev/null 2>&1 || { echo "缺少 gh 命令" >&2; exit 1; }
 gh auth status >/dev/null 2>&1 || { echo "gh 尚未登录" >&2; exit 1; }

@@ -79,8 +79,14 @@ i, √3i, 2i, √5i, √7i, 2√2i, 3i, 2√3i, √15i, 4i, √21i, 2√6i, 5i, 
 
 - Windows：压缩包内含 `complexweeper.exe` 与 SDL3 运行库（`SDL3.dll`、`SDL3_ttf.dll`），
   解压后直接运行，无需安装。
-- Linux：压缩包内含 `complexweeper` 可执行文件；需要系统安装 SDL3 / SDL3_ttf 运行库，
-  例如 Arch 的 `sdl3 sdl3_ttf`，或 Debian/Ubuntu 对应的 SDL3 运行包。
+- Linux：AppImage，内部是 ELF 可执行文件，并自带 SDL3 等运行库，无需安装依赖：
+
+  ```bash
+  chmod +x complexweeper-<版本>-x86_64.AppImage
+  ./complexweeper-<版本>-x86_64.AppImage
+  ```
+
+  如果系统没有 FUSE，可改用 `./complexweeper-<版本>-x86_64.AppImage --appimage-extract-and-run`。
 
 发行包由本地脚本构建，不经过 CI。
 
@@ -91,16 +97,17 @@ i, √3i, 2i, √5i, √7i, 2√2i, 3i, 2√3i, √15i, 4i, √21i, 2√6i, 5i, 
 - [Zig](https://ziglang.org/download/) 0.14.1
 - SDL3 3.4.18 与 SDL3_ttf 3.2.2 开发包
 - Node.js（构建发行包时需要；普通构建可省略，仓库已附带生成结果）
-- 一款中文字体（Linux 推荐安装 Noto Sans CJK 或文泉驿；Windows 自带字体即可）
+- Python 3 + fonttools（仅重新生成字体子集时需要；生成结果已提交）
+- 无需额外字体：界面字体已内置（Noto Sans CJK SC 子集）
 
 ### Linux
 
 ```bash
 # Arch Linux
-sudo pacman -S --needed base-devel sdl3 sdl3_ttf nodejs noto-fonts-cjk
+sudo pacman -S --needed base-devel sdl3 sdl3_ttf nodejs
 
 # Debian / Ubuntu
-sudo apt install build-essential libsdl3-dev libsdl3-ttf-dev nodejs fonts-noto-cjk
+sudo apt install build-essential libsdl3-dev libsdl3-ttf-dev nodejs
 
 ./scripts/build-linux.sh          # 构建并运行两套自检
 ./build/complexweeper
@@ -133,6 +140,20 @@ powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1
 下载默认走 `https://ghfast.top/` 镜像；可用 `-SdlMirror <前缀>` 或环境变量 `SDL_MIRROR`
 换镜像，传 `-SdlMirror ''` 则直连 GitHub。已下载的 zip 也可以手动放进 `build/sdl-deps/` 复用。
 
+### 重新生成字体子集
+
+界面字体已按实际用字切好并提交在 `src/font_subset.otf`，普通构建不需要重新生成。
+如果修改了界面文字，需要补字：
+
+```bash
+# Arch: sudo pacman -S python-fonttools
+# Debian / Ubuntu: sudo apt install python3-fonttools
+python3 tools/make_font_subset.py
+```
+
+脚本会下载 OFL 授权的 Noto Sans CJK SC，按 `src/*.zig` 里的字符串字面量重切子集；
+源字体缓存在 `build/fonts/`，许可证输出到 `assets/fonts/OFL.txt`。
+
 ### 本地发行包
 
 在 Linux 主机上可一次构建两个平台的发行包，不依赖 CI：
@@ -145,11 +166,12 @@ powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1
 （Windows 自检需要本机有 Wine），并输出到 `build/release/`：
 
 ```text
-complexweeper-<版本>-linux-x86_64.tar.gz
+complexweeper-<版本>-x86_64.AppImage
 complexweeper-<版本>-win64.zip
 SHA256SUMS
 ```
 
+AppImage 打包会从 GitHub Releases 下载 `appimagetool` 并缓存到 `build/appimage-tool/`。
 SDL 下载默认同样走 `https://ghfast.top/` 镜像，可用环境变量 `SDL_MIRROR` 覆盖；
 `--no-test` 可跳过自检。上传到 GitHub Releases：
 

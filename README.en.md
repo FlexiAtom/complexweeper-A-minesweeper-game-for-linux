@@ -89,8 +89,15 @@ Release packages are published under [Releases](../../releases):
 
 - Windows: the archive contains `complexweeper.exe` together with the SDL3 runtime
   libraries (`SDL3.dll`, `SDL3_ttf.dll`). Unzip and run; no installation is required.
-- Linux: the archive contains the `complexweeper` executable. The system must provide
-  the SDL3 / SDL3_ttf runtime libraries, for example `sdl3` and `sdl3_ttf` on Arch.
+- Linux: an AppImage that contains the ELF executable and bundles the SDL3 runtime
+  libraries, so no system packages are required:
+
+  ```bash
+  chmod +x complexweeper-<version>-x86_64.AppImage
+  ./complexweeper-<version>-x86_64.AppImage
+  ```
+
+  If FUSE is unavailable, run it with `--appimage-extract-and-run`.
 
 Release packages are built by local scripts, not CI.
 
@@ -101,16 +108,17 @@ Requirements:
 - [Zig](https://ziglang.org/download/) 0.14.1
 - SDL3 3.4.18 and SDL3_ttf 3.2.2 development packages
 - Node.js (needed for release packaging; optional for a normal build — generated files are committed)
-- A CJK font (Noto Sans CJK or WenQuanYi on Linux; Windows system fonts are fine)
+- Python 3 + fonttools (only when regenerating the font subset; the generated file is committed)
+- No extra font is required; the UI font (a Noto Sans CJK SC subset) is embedded
 
 ### Linux
 
 ```bash
 # Arch Linux
-sudo pacman -S --needed base-devel sdl3 sdl3_ttf nodejs noto-fonts-cjk
+sudo pacman -S --needed base-devel sdl3 sdl3_ttf nodejs
 
 # Debian / Ubuntu
-sudo apt install build-essential libsdl3-dev libsdl3-ttf-dev nodejs fonts-noto-cjk
+sudo apt install build-essential libsdl3-dev libsdl3-ttf-dev nodejs
 
 ./scripts/build-linux.sh          # build and run both self-tests
 ./build/complexweeper
@@ -145,6 +153,21 @@ Downloads go through the `https://ghfast.top/` mirror by default. Pass
 `-SdlMirror <prefix>` or set `SDL_MIRROR` to use another mirror, or `-SdlMirror ''`
 to download directly from GitHub. Pre-downloaded zips can be placed in `build/sdl-deps/`.
 
+### Regenerating the font subset
+
+The UI font is already subset and committed as `src/font_subset.otf`, so a normal build
+does not need to regenerate it. After changing UI text, add the new characters with:
+
+```bash
+# Arch: sudo pacman -S python-fonttools
+# Debian / Ubuntu: sudo apt install python3-fonttools
+python3 tools/make_font_subset.py
+```
+
+The script downloads the OFL-licensed Noto Sans CJK SC, subsets it using the string
+literals in `src/*.zig`, caches the source font in `build/fonts/`, and writes the license
+to `assets/fonts/OFL.txt`.
+
 ### Local release packages
 
 On a Linux host, build both platform packages locally without CI:
@@ -158,12 +181,14 @@ Windows x86_64 version, runs both self-tests (the Windows tests require Wine), a
 to `build/release/`:
 
 ```text
-complexweeper-<version>-linux-x86_64.tar.gz
+complexweeper-<version>-x86_64.AppImage
 complexweeper-<version>-win64.zip
 SHA256SUMS
 ```
 
-SDL downloads use the `https://ghfast.top/` mirror by default; override with `SDL_MIRROR`.
+AppImage packaging downloads `appimagetool` from GitHub Releases and caches it in
+`build/appimage-tool/`. SDL downloads use the `https://ghfast.top/` mirror by default;
+override with `SDL_MIRROR`.
 Pass `--no-test` to skip the self-tests. Upload to GitHub Releases with:
 
 ```bash
