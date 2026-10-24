@@ -57,7 +57,7 @@ pub const Game = struct {
 /// 当前玩法模式
     mode: Mode = .complex,
 /// 闵可夫斯基模式的判据取备选
-/// 默认 false = 推荐判据（|a|、|b| 分别相符，即四种符号组合任选）。见 文档/双曲复数模式.md §3。
+/// 默认 false = 推荐判据（|a|、|b| 分别相符，即四种符号组合任选）。见双曲复数模式设计文档 §3。
     judge_loose: bool = false,
     mine: [MAX_CELLS]u8 = [_]u8{0} ** MAX_CELLS,
 /// 显示值：圆复数模式存 a²+b²（0…64），闵可夫斯基模式存 a²−b²（−64…64）

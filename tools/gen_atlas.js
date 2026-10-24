@@ -1,4 +1,4 @@
-/* 把 素材/ 里的 PNG 打包成一个图集（atlas.bin）+ 生成 Zig 侧的索引表（src/assets.zig）。
+/* 把 assets/ 里的 PNG 打包成一个图集（atlas.bin）+ 生成 Zig 侧的索引表（src/assets.zig）。
    图集格式（小端）：
      magic  "CSAT"      4 字节
      u16 version = 1
@@ -6,7 +6,7 @@
      u16 width, u16 height
      count 项：u16 x, u16 y, u16 w, u16 h
      像素数据：width*height*4 字节，BGRA8（GDI 的 32bpp DIB 顺序），行内自顶向下
-   素材只有这一种来源：素材/图集.png + 素材/图集.json（槽位名 → 矩形，数组顺序就是槽位号）。
+   素材只有这一种来源：assets/atlas.png + assets/atlas.json（槽位名 → 矩形，数组顺序就是槽位号）。
    早期那套"61 张单张 PNG 按文件名映射后货架打包"的做法已作废：改素材就直接改那张大图，
    槽位表用 tools/dump_atlas.js 生成/维护；放大交给程序做整数倍最近邻（素材只保留原生尺寸）。
    这里只做校验：名字不重、矩形不越界、24 个显示值贴图齐不齐。
@@ -17,18 +17,18 @@ const path = require('path');
 const zlib = require('zlib');
 const { VALUES: HYPER_VALUES } = require('./hyper_values.js');
 
-const root = path.resolve(__dirname, '..', '..');          // 项目根
-const assetDir = path.join(root, '素材');
-const outDir = path.resolve(__dirname, '..');
+const root = path.resolve(__dirname, '..');                // 项目根
+const assetDir = path.join(root, 'assets');
+const outDir = root;
 const argv = process.argv.slice(2);
 const argValue = (name) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : null; };
 const binPath = argValue('--out-bin') ? path.resolve(argValue('--out-bin')) : path.join(outDir, 'src', 'atlas.bin');
 const zigPath = argValue('--out-zig') ? path.resolve(argValue('--out-zig')) : path.join(outDir, 'src', 'assets.zig');
-const PACKED_PNG = path.join(assetDir, '图集.png');
-const PACKED_JSON = path.join(assetDir, '图集.json');
+const PACKED_PNG = path.join(assetDir, 'atlas.png');
+const PACKED_JSON = path.join(assetDir, 'atlas.json');
 // 黑白贴图（可选）：同一套尺寸与槽位，只是画成黑白。作者可以单独画一张放这儿
-const BW_PNG = path.join(assetDir, '图集黑白.png');
-const BW_BIN = path.join(outDir, 'src', 'atlas_bw.bin');
+const BW_PNG = path.join(assetDir, 'atlas-bw.png');
+const BW_BIN = path.join(outDir, 'src', 'atlas-bw.bin');
 
 /* ---------------- 最小 PNG 解码（够用即可：支持 8 位 RGBA / RGB / 调色板） ---------------- */
 function readPNG(file){
@@ -84,15 +84,15 @@ function readPNG(file){
   return { w, h, rgba };
 }
 
-/* ---------------- 素材来源：素材/图集.png + 素材/图集.json（唯一来源） ---------------- */
+/* ---------------- 素材来源：assets/atlas.png + assets/atlas.json（唯一来源） ---------------- */
 const ACHIEVABLE = [0,1,2,4,5,8,9,10,13,16,17,18,20,25,26,29,32,34,36,37,40,49,50,64];
 if (!fs.existsSync(PACKED_PNG) || !fs.existsSync(PACKED_JSON)) {
-  throw new Error('缺少 素材/图集.png 或 素材/图集.json —— 素材只有这一种来源（散图模式已作废）');
+  throw new Error('缺少 assets/atlas.png 或 assets/atlas.json —— 素材只有这一种来源（散图模式已作废）');
 }
 
 let W, H, placed;
 const meta = JSON.parse(fs.readFileSync(PACKED_JSON, 'utf8'));
-if (meta.version !== 1) throw new Error('图集.json 的 version 不认识：' + meta.version);
+if (meta.version !== 1) throw new Error('atlas.json 的 version 不认识：' + meta.version);
 W = meta.width; H = meta.height;
 const sheet = readPNG(PACKED_PNG);
 if (sheet.w !== W || sheet.h !== H) throw new Error(`整图尺寸与 json 不符：png ${sheet.w}×${sheet.h}，json ${W}×${H}`);
@@ -128,10 +128,10 @@ for (const v of HYPER_VALUES) {
 }
 for (const n of ['led_i', 'led_j']) if (!seen.has(n)) throw new Error('整图里缺少计雷器单位贴图（' + n + '）');
 const reuseCount = [...hyperSprite.values()].filter((n) => n.startsWith('num_')).length;
-console.log(`素材来源：整图（图集.png + 图集.json，${placed.length} 个槽位，${W}×${H}）`);
+console.log(`素材来源：整图（atlas.png + atlas.json，${placed.length} 个槽位，${W}×${H}）`);
 console.log(`闵可夫斯基模式 39 个显示值：自带贴图 ${hyperSprite.size - reuseCount} 张 + 复用圆复数模式 ${reuseCount} 张`);
 
-// 占位图提醒：新增区的占位素材字色是紫红 160,0,160（见 文档/双曲复数模式.md）。真素材里不会出现它，
+// 占位图提醒：新增区的占位素材字色是紫红 160,0,160（见双曲复数模式设计文档）。真素材里不会出现它，
 // 所以哪一格还带着这个颜色，就是"还没画"。这里只提醒、不拦构建。
 const PLACEHOLDER = [160, 0, 160];
 const pending = [];
@@ -200,13 +200,13 @@ let bwSource = '去饱和（彩色图集）';
   let custom = null;
   if (fs.existsSync(BW_PNG)) {
     const im = readPNG(BW_PNG);
-    if (im.w !== W || im.h !== H) throw new Error(`图集黑白.png 尺寸不对：${im.w}×${im.h}，应为 ${W}×${H}`);
+    if (im.w !== W || im.h !== H) throw new Error(`atlas-bw.png 尺寸不对：${im.w}×${im.h}，应为 ${W}×${H}`);
     let opaque = 0;
     for (let i = 0; i < im.w * im.h; i++) if (im.rgba[i * 4 + 3] > 0) opaque += 1;
     if (opaque > 0) custom = im;
-    else console.log('图集黑白.png 整张是全透明的空图（0 个不透明像素）→ 这次先退回"彩色图集去饱和"，请重新导出');
+    else console.log('atlas-bw.png 整张是全透明的空图（0 个不透明像素）→ 这次先退回"彩色图集去饱和"，请重新导出');
   } else {
-    console.log('没有 图集黑白.png → 黑白贴图由彩色图集去饱和生成');
+    console.log('没有 atlas-bw.png → 黑白贴图由彩色图集去饱和生成');
   }
   for (const p of placed) {
     for (let ry = 0; ry < p.h; ry++) {
@@ -228,7 +228,7 @@ let bwSource = '去饱和（彩色图集）';
       }
     }
   }
-  if (custom) bwSource = '图集黑白.png';
+  if (custom) bwSource = 'atlas-bw.png';
   const head = Buffer.alloc(12);
   head.write('CSBW', 0, 'ascii');
   head.writeUInt16LE(1, 4);
@@ -258,11 +258,11 @@ fs.writeFileSync(binPath, Buffer.concat([header, pix]));
 const idx = new Map(placed.map((p, i) => [p.name, i]));
 const lines = [];
 lines.push('// 本文件由 tools/gen_atlas.js 自动生成，不要手改。');
-lines.push('// 图集来自 素材/ 目录，格式见 tools/gen_atlas.js 顶部注释。');
+lines.push('// 图集来自 assets/ 目录，格式见 tools/gen_atlas.js 顶部注释。');
 lines.push('');
 lines.push('pub const blob = @embedFile("atlas.bin");');
 lines.push('/// 黑白贴图（灰度，1 字节/像素，格式 CSBW）：\"颜色\"关掉时用它');
-lines.push('pub const blob_bw = @embedFile("atlas_bw.bin");');
+lines.push('pub const blob_bw = @embedFile("atlas-bw.bin");');
 lines.push('pub const atlas_w: u16 = ' + W + ';');
 lines.push('pub const atlas_h: u16 = ' + H + ';');
 lines.push('pub const count: u16 = ' + placed.length + ';');

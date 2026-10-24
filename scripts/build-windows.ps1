@@ -1,15 +1,15 @@
 ﻿# 复数扫雷 正式版 · 构建脚本
-#   1) 用 Node 把 素材/ 打包成图集（src/atlas.bin + src/assets.zig）
+#   1) 用 Node 把 assets/ 打包成图集（src/atlas.bin + src/assets.zig）
 #   2) 用 Zig 交叉编译出原生 Windows exe（无第三方库、无 libc、无运行时依赖）
 #   3) 注入图标资源，输出单个 exe
 #   4) 跑规则自检与界面自检
 #
-# 用法： powershell -ExecutionPolicy Bypass -File build.ps1 [-NoTest]
+# 用法： powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1 [-NoTest]
 param(
     [switch]$NoTest
 )
 $ErrorActionPreference = 'Stop'
-$root = $PSScriptRoot
+$root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
 function Find-Zig {
@@ -49,25 +49,24 @@ node (Join-Path $root 'tools\gen_atlas.js')
 if ($LASTEXITCODE -ne 0) { throw "生成图集失败" }
 
 Write-Host "`n[2/4] 编译…"
-$out = Join-Path $root 'build\cs.exe'
+$out = Join-Path $root 'build\complexweeper.exe'
 & $zig build-exe (Join-Path $root 'src\main.zig') `
     -target x86_64-windows-gnu -O ReleaseSmall `
     "-femit-bin=$out" --subsystem windows
 if ($LASTEXITCODE -ne 0) { throw "编译失败" }
 
 Write-Host "`n[3/4] 注入图标并输出单个 exe…"
-$final = Join-Path $root '复扫雷.exe'
-# 产物名带版本号：复扫雷 <版本>.exe 是交付/存档用的那一份；复扫雷.exe 是同一份构建的稳定副本
+$final = Join-Path $root 'complexweeper.exe'
+# 产物名带版本号：complexweeper-<版本>.exe 是交付/存档用的那一份；complexweeper.exe 是同一份构建的稳定副本
 # （自检、工具脚本、快捷方式都读稳定名，两个文件每次构建一起重写，不会各自漂移）。
 $verMatch = [regex]::Match((Get-Content (Join-Path $root 'src\main.zig') -Encoding UTF8 -Raw), 'const APP_VERSION = "([0-9]+\.[0-9]+\.[0-9]+)";')
 if (-not $verMatch.Success) { throw '读不到 src\main.zig 里的 APP_VERSION' }
 $version = $verMatch.Groups[1].Value
-$versioned = Join-Path $root "复扫雷 $version.exe"
+$versioned = Join-Path $root "complexweeper-$version.exe"
 if ((Test-Locked $final) -or (Test-Locked $versioned)) {
-    # 按"进程名里带扫雷"来找，别写死包名：改过名的副本（早期的 复数扫雷.exe 之类）也能报出来
-    $who = (Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -like '*扫雷*' } |
+    $who = (Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -like 'complexweeper*' } |
             Select-Object -ExpandProperty Id) -join ', '
-    throw "「复扫雷.exe」正被占用（还在运行的实例 pid: $who），先关掉再构建"
+    throw "「complexweeper.exe」正被占用（还在运行的实例 pid: $who），先关掉再构建"
 }
 node (Join-Path $root 'tools\set_icon.js') $out $final
 if ($LASTEXITCODE -ne 0) { throw "注入图标失败" }
@@ -91,6 +90,6 @@ if (-not $NoTest) {
 $size = (Get-Item $final).Length
 $hashA = (Get-FileHash $final -Algorithm SHA256).Hash
 $hashB = (Get-FileHash $versioned -Algorithm SHA256).Hash
-if ($hashA -ne $hashB) { throw "两个产物不一致（复扫雷.exe 与 复扫雷 $version.exe）" }
+if ($hashA -ne $hashB) { throw "两个产物不一致（complexweeper.exe 与 complexweeper-$version.exe）" }
 Write-Host ("`n完成：{0}  （{1:N0} 字节，{2:N0} KB）" -f $versioned, $size, ($size / 1KB))
-Write-Host ("      同一份构建的稳定副本：复扫雷.exe（SHA-256 一致 {0}…）" -f $hashA.Substring(0, 16))
+Write-Host ("      同一份构建的稳定副本：complexweeper.exe（SHA-256 一致 {0}…）" -f $hashA.Substring(0, 16))

@@ -38,19 +38,17 @@ jobs:
 
       - name: 构建 + 两套自检
         shell: pwsh
-        run: ./正式版/build.ps1
+        run: ./scripts/build-windows.ps1
 
       - name: 发 Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $v = [regex]::Match((Get-Content '正式版/src/main.zig' -Raw -Encoding UTF8), 'const APP_VERSION = "([0-9]+\.[0-9]+\.[0-9]+)";').Groups[1].Value
+          $v = [regex]::Match((Get-Content 'src/main.zig' -Raw -Encoding UTF8), 'const APP_VERSION = "([0-9]+\.[0-9]+\.[0-9]+)";').Groups[1].Value
           if (-not $v) { throw '读不到 APP_VERSION' }
-          $exe = "正式版/复扫雷 $v.exe"
+          $exe = "complexweeper-$v.exe"
           if (-not (Test-Path $exe)) { throw "找不到产物：$exe" }
-          # 附件只传纯 ASCII 名：gh 会按空格拆参数，带空格的名字传上去只剩后半截
-          # （复扫雷 1.0.11.exe → 1.0.11.exe，踩过）。文件内容一样，就是同一个 exe。
           $ascii = "complexweeper-$v-win64.exe"
           Copy-Item $exe $ascii -Force
           $tag = "${{ github.ref_name }}"

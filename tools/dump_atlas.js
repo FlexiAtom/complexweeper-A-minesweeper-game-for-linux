@@ -1,5 +1,5 @@
 /* 把编进 exe 的那张图集导成 PNG，方便直接看（或核对），并生成「整图模式」要的槽位表。
-   输入可以是 src/atlas.bin，也可以是 复扫雷.exe（会在里面找 CSAT 魔数）。
+   输入可以是 src/atlas.bin，也可以是 complexweeper.exe（会在里面找 CSAT 魔数）。
    用法: node tools/dump_atlas.js <atlas.bin 或 exe> <输出目录>
    输出（都是 1:1 原生尺寸，放大交给程序做整数倍最近邻，这里不再出放大版）:
      atlas.png      整图（保留 alpha，和图集里逐字节一致）
@@ -106,7 +106,7 @@ fs.writeFileSync(path.join(outDir, 'sprites.txt'), listing.join('\r\n') + '\r\n'
 console.log(`写出 ${spritesDir}（逐张 ${count} 个 PNG，1:1 原生尺寸）与 sprites.txt（序号 / 名字 / 尺寸 / 图集位置）`);
 console.log(`名字来自 src/assets.zig，${nameByIndex.size}/${count} 张认出了名字`);
 
-/* ---- 槽位表：素材/图集.json 就是这份东西（构建时读它 + 图集.png 出 atlas.bin） ---- */
+/* ---- 槽位表：assets/atlas.json 就是这份东西（构建时读它 + atlas.png 出 atlas.bin） ---- */
 const meta = {
   version: 1,
   width: W,

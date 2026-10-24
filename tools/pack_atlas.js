@@ -1,5 +1,5 @@
-/* 把画好的单张 PNG 收进大图集（素材/图集.png + 图集.json），并把整张图按种类重排。
-   图集是唯一画布：既可以整张直接画，也可以把单张丢进 素材/双曲复数新增/ 让这个脚本收进去。
+/* 把画好的单张 PNG 收进大图集（assets/atlas.png + atlas.json），并把整张图按种类重排。
+   图集是唯一画布：既可以整张直接画，也可以把单张丢进 assets/hyperbolic-additions/ 让这个脚本收进去。
 
    单张图的命名：中文名（见下面 MAP）或者直接写槽位名，两种都认。
    落到图集里的排布按种类分段，段内从左到右、满一行换行，中间不留格线：
@@ -17,11 +17,10 @@ const path = require('path');
 const { readPNG, writePNG } = require('./png.js');
 const { VALUES } = require('./hyper_values.js');
 
-const root = path.resolve(__dirname, '..', '..');
-const proj = path.resolve(__dirname, '..');
-const SHEET = path.join(root, '素材', '图集.png');
-const META = path.join(root, '素材', '图集.json');
-const LOOSE = path.join(root, '素材', '双曲复数新增');
+const root = path.resolve(__dirname, '..');
+const SHEET = path.join(root, 'assets', 'atlas.png');
+const META = path.join(root, 'assets', 'atlas.json');
+const LOOSE = path.join(root, 'assets', 'hyperbolic-additions');
 const argv = process.argv.slice(2);
 const dry = argv.includes('--dry');
 const wi = argv.indexOf('--width');

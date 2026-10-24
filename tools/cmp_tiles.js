@@ -1,15 +1,15 @@
 /* 把指定的槽位「新旧并排」画成一张图（旧在左、新在右，8× 最近邻、衬 #C0C0C0），
    用来看清这一轮素材到底改了什么。
    用法: node tools/cmp_tiles.js [槽位名...]        # 默认那六张带系数的根式
-   默认比对目录: build\素材导出_旧\sprites 与 build\素材导出\sprites（可用环境变量覆盖） */
+   默认比对目录: build/asset-export-old/sprites 与 build/asset-export/sprites（可用环境变量覆盖） */
 const fs = require('fs');
 const path = require('path');
 const { readPNG, writePNG } = require('./png.js');
 
 const root = path.join(__dirname, '..');
-const OLD = process.env.CMP_OLD || path.join(root, 'build', '素材导出_旧', 'sprites');
-const NEW = process.env.CMP_NEW || path.join(root, 'build', '素材导出', 'sprites');
-const OUT = process.env.CMP_OUT || path.join(root, 'build', '数字贴图对比.png');
+const OLD = process.env.CMP_OLD || path.join(root, 'build', 'asset-export-old', 'sprites');
+const NEW = process.env.CMP_NEW || path.join(root, 'build', 'asset-export', 'sprites');
+const OUT = process.env.CMP_OUT || path.join(root, 'build', 'number-sprites-comparison.png');
 
 const names = process.argv.slice(2).length ? process.argv.slice(2)
   : ['num_8', 'num_18', 'num_20', 'num_32', 'num_40', 'num_50'];

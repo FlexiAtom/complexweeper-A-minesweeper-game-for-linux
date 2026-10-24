@@ -1130,7 +1130,7 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
 // 17) 颜色开关：勾选态 = 彩色贴图；关掉改用黑白贴图（菜单圆点与图集一起翻）
     {
         expect(out, ui.testPopupItemId(0, 5) == @as(i32, @intCast(ui.test_IDM_COLOR)), "第 6 项应是「颜色」");
-        expect(out, ui.testBwAtlasLoaded(), "黑白图集应加载成功（由 素材/图集黑白.png 生成的灰度图）");
+        expect(out, ui.testBwAtlasLoaded(), "黑白图集应加载成功（由 assets/atlas-bw.png 生成的灰度图）");
         // 起手状态取决于本机存的偏好（默认没有这一项 = 彩色），所以只验翻转与图集切换
         const mono = ui.testColorOff();
         expect(out, ui.testPopupItemChecked(0, 5) == !mono, "颜色勾选态应反映当前状态（彩色才有圆点）");

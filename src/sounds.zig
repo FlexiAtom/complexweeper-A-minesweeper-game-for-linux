@@ -1,5 +1,5 @@
 // 本文件由 tools/gen_sounds.js 自动生成，不要手改。
-// 音效来自 音效/素材/（四种踩雷 + 胜利 + 计时），原样内嵌，运行时交给 PlaySound 的 SND_MEMORY。
+// 音效来自 assets/sounds/（四种踩雷 + 胜利 + 计时），原样内嵌。
 
 pub const blob = @embedFile("sounds.bin");
 pub const count: u16 = 6;

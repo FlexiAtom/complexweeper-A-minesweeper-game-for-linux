@@ -1,4 +1,4 @@
-/* 把 音效/素材/ 里的 wav 打包成一个二进制（src/sounds.bin）+ 生成 Zig 侧的枚举与取用函数（src/sounds.zig）。
+/* 把 assets/sounds/ 里的 wav 打包成一个二进制（src/sounds.bin）+ 生成 Zig 侧的枚举与取用函数（src/sounds.zig）。
    容器格式（小端）：
      magic "CSSN"        4 字节
      u16 version = 1
@@ -8,15 +8,15 @@
      数据区：每段 wav 的原始字节（含标准头，PlaySound 的 SND_MEMORY 要的就是这个）
 
    用法:
-     node tools/gen_sounds.js                        # 从 音效/素材/ 生成（默认）
+     node tools/gen_sounds.js                        # 从 assets/sounds/ 生成（默认）
      node tools/gen_sounds.js --extract <目录>       # 反向：把图里的音效导回成 wav 文件
    之所以能反向导出：这样仓库里只带 sounds.bin 也够用，谁想换音效就导出来改、再打包回去。 */
 const fs = require('fs');
 const path = require('path');
 
-const root = path.resolve(__dirname, '..', '..');          // 项目根
-const assetDir = path.join(root, '音效', '素材');
-const outDir = path.resolve(__dirname, '..');
+const root = path.resolve(__dirname, '..');                // 项目根
+const assetDir = path.join(root, 'assets', 'sounds');
+const outDir = root;
 const binPath = path.join(outDir, 'src', 'sounds.bin');
 const zigPath = path.join(outDir, 'src', 'sounds.zig');
 
@@ -112,7 +112,7 @@ fs.writeFileSync(binPath, Buffer.concat([header, ...sounds.map(s => s.buf)]));
 /* ---- 生成 sounds.zig ---- */
 const lines = [];
 lines.push('// 本文件由 tools/gen_sounds.js 自动生成，不要手改。');
-lines.push('// 音效来自 音效/素材/（四种踩雷 + 胜利 + 计时），原样内嵌，运行时交给 PlaySound 的 SND_MEMORY。');
+lines.push('// 音效来自 assets/sounds/（四种踩雷 + 胜利 + 计时），原样内嵌。');
 lines.push('');
 lines.push('pub const blob = @embedFile("sounds.bin");');
 lines.push('pub const count: u16 = ' + sounds.length + ';');

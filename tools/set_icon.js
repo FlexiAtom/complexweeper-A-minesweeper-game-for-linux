@@ -1,5 +1,5 @@
 ﻿/* 给 exe 注入图标资源（Zig 没有资源编译器，所以自己写 PE 的 .rsrc 节）。
-   图标来源：图集里的 icon 槽位（素材/图标.png，32×32，带 alpha）。
+   图标来源：图集里的 icon 槽位（32×32，带 alpha）。
    写出 16 / 32 / 48 三种尺寸：16 = 2×2 方框平均（原图是点阵抖动，抽样会走样），
    32 = 原图，48 = 最近邻放大 1.5×（像素画宁可硬边也不要糊）。
    用法: node tools/set_icon.js <输入exe> <输出exe> */
@@ -19,7 +19,7 @@ const pixOff = 12 + count * 8;
 // 从生成的 assets.zig 里解析下标，别猜
 const assetsZig = fs.readFileSync(path.resolve(__dirname, '..', 'src', 'assets.zig'), 'utf8');
 const m = /pub const icon: u16 = (\d+);/.exec(assetsZig);
-if (!m) { console.error('assets.zig 里找不到 icon（素材/图标.png 没进图集？）'); process.exit(2); }
+if (!m) { console.error('assets.zig 里找不到 icon（图标没进图集？）'); process.exit(2); }
 const idx = parseInt(m[1], 10);
 const rx = atlas.readUInt16LE(12 + idx * 8);
 const ry = atlas.readUInt16LE(12 + idx * 8 + 2);
@@ -245,4 +245,4 @@ out.writeUInt32LE(rsrc.length, ddOff + 2 * 8 + 4);                             /
 
 fs.writeFileSync(outExe, out);
 console.log('-> ' + outExe + '  ' + out.length + ' 字节（.rsrc 图标 ' +
-  sizes.map(s => s.w + '×' + s.h).join(' / ') + '，源 素材/图标.png ' + SW + '×' + SH + '）');
+  sizes.map(s => s.w + '×' + s.h).join(' / ') + '，源图集 icon ' + SW + '×' + SH + '）');

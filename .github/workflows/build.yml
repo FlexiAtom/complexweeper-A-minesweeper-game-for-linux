@@ -51,14 +51,14 @@ jobs:
 
       - name: 构建 + 两套自检
         shell: pwsh
-        run: ./正式版/build.ps1
+        run: ./scripts/build-windows.ps1
 
       - name: 上传产物与自检报告
         uses: actions/upload-artifact@v5
         with:
           name: complexweeper-${{ github.sha }}
           path: |
-            正式版/复扫雷*.exe
-            正式版/build/selftest.txt
-            正式版/build/uitest.txt
+            complexweeper*.exe
+            build/selftest.txt
+            build/uitest.txt
           if-no-files-found: error

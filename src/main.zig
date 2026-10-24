@@ -1520,7 +1520,7 @@ const ABOUT_TEXT = APP_TITLE ++ " " ++ APP_VERSION ++ "\r\n" ++
 fn showAbout() void {
     const hinst = w.GetModuleHandleW(null);
     if (w.LoadIconW(hinst, w.resId(ICON_RES_ID)) == null) {
-        // 中间产物（build\cs.exe）还没注入 .rsrc：退回系统信息图标，弹窗本身照常
+        // 中间产物（build\complexweeper.exe）还没注入 .rsrc：退回系统信息图标，弹窗本身照常
         _ = w.MessageBoxW(hwnd_main, w.wstr(ABOUT_TEXT), w.wstr("关于复扫雷"), w.MB.OK | w.MB.ICONINFORMATION);
         return;
     }
@@ -1645,8 +1645,8 @@ fn checkMenu() void {
 /// exe 里 .rsrc 图标资源的 ID（tools/set_icon.js 写的 RT_GROUP_ICON，里面是 16/32/48 三档）
 const ICON_RES_ID: usize = 1;
 
-/// 程序图标 = 素材/图标.png。优先直接用 exe 里注入的那份资源（尺寸齐全、alpha 原样），
-/// 拿不到时（例如还没注入 .rsrc 的中间产物 build\cs.exe）才用图集里那张 32×32 现场造一个。
+/// 程序图标 = 图集里的 icon 槽位。优先直接用 exe 里注入的那份资源（尺寸齐全、alpha 原样），
+/// 拿不到时（例如还没注入 .rsrc 的中间产物 build\complexweeper.exe）才用图集里那张 32×32 现场造一个。
 fn makeIcon() w.HICON {
     const hinst = w.GetModuleHandleW(null);
     const from_res = w.LoadIconW(hinst, w.resId(ICON_RES_ID));

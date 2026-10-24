@@ -1,18 +1,18 @@
 /* 素材导出的验收脚本（素材只有整图这一种来源）：
-     1) src/atlas.bin 的矩形表必须与 素材/图集.json 完全一致（防"改了素材没重建"）
-     2) src/atlas.bin 的像素必须与 素材/图集.png 逐像素一致（防"图集是用旧大图建的"）
-     3) 导出的散图（build/素材导出/sprites/*.png）必须与图集逐像素一致（防导出写坏）
+     1) src/atlas.bin 的矩形表必须与 assets/atlas.json 完全一致（防"改了素材没重建"）
+     2) src/atlas.bin 的像素必须与 assets/atlas.png 逐像素一致（防"图集是用旧大图建的"）
+     3) 导出的散图（build/asset-export/sprites/*.png）必须与图集逐像素一致（防导出写坏）
    用法: node tools/check_export.js [导出目录] [图集文件]
-   默认: build\素材导出 与 src\atlas.bin。退出码 0 = 全部一致 */
+   默认: build/asset-export 与 src/atlas.bin。退出码 0 = 全部一致 */
 const fs = require('fs');
 const path = require('path');
 const { readPNG, diffRGBA } = require('./png.js');
 
-const root = path.join(__dirname, '..');              // 正式版/
-const assetsDir = path.join(root, '..', '素材');
-const SHEET_PNG = path.join(assetsDir, '图集.png');
-const SHEET_JSON = path.join(assetsDir, '图集.json');
-const OUT = process.argv[2] || path.join(root, 'build', '素材导出');
+const root = path.join(__dirname, '..');
+const assetsDir = path.join(root, 'assets');
+const SHEET_PNG = path.join(assetsDir, 'atlas.png');
+const SHEET_JSON = path.join(assetsDir, 'atlas.json');
+const OUT = process.argv[2] || path.join(root, 'build', 'asset-export');
 const ATLAS = process.argv[3] || path.join(root, 'src', 'atlas.bin');
 
 let bad = 0;
@@ -40,10 +40,10 @@ const crop = (buf, bw, r) => {
   return out;
 };
 
-/* ---- 1) 矩形表 vs 素材/图集.json ---- */
+/* ---- 1) 矩形表 vs assets/atlas.json ---- */
 const meta = JSON.parse(fs.readFileSync(SHEET_JSON, 'utf8'));
-if (meta.width !== W || meta.height !== H) fail(`尺寸不一致：图集 ${W}×${H}，素材/图集.json ${meta.width}×${meta.height}`);
-if (meta.slots.length !== count) fail(`槽位数量不一致：图集 ${count}，素材/图集.json ${meta.slots.length}`);
+if (meta.width !== W || meta.height !== H) fail(`尺寸不一致：图集 ${W}×${H}，assets/atlas.json ${meta.width}×${meta.height}`);
+if (meta.slots.length !== count) fail(`槽位数量不一致：图集 ${count}，assets/atlas.json ${meta.slots.length}`);
 meta.slots.forEach((s, i) => {
   const r = rects[i];
   if (!r) return;
@@ -52,12 +52,38 @@ meta.slots.forEach((s, i) => {
   }
 });
 
-/* ---- 2) 图集像素 vs 素材/图集.png ---- */
+/* ---- 2) 图集像素 vs assets/atlas.png ---- */
 const sheet = readPNG(SHEET_PNG);
-if (sheet.w !== W || sheet.h !== H) fail(`素材/图集.png 尺寸与图集不符：${sheet.w}×${sheet.h} vs ${W}×${H}`);
+if (sheet.w !== W || sheet.h !== H) fail(`assets/atlas.png 尺寸与图集不符：${sheet.w}×${sheet.h} vs ${W}×${H}`);
 else {
-  const d = diffRGBA(sheet.rgba, atlas);
-  if (d.n) fail(`图集与 素材/图集.png 像素不一致（${d.n} 像素，最大差 ${d.worst}）—— 多半是改了素材没重建`);
+  // 复刻 gen_atlas.js 的规则：除 icon 外，槽位内 alpha<255 的像素按 #C0C0C0 补实；
+  // 槽位外一律保持透明。直接拿原图逐像素比会把这条已知变换误报成"素材不一致"。
+  const expected = Buffer.from(sheet.rgba);
+  const inside = new Uint8Array(W * H);
+  meta.slots.forEach((s, i) => {
+    const r = rects[i];
+    if (!r) return;
+    for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
+      inside[y * W + x] = 1;
+      if (s.name === 'icon') continue;
+      const o = (y * W + x) * 4;
+      const a = expected[o + 3];
+      if (a >= 255) continue;
+      const t = a / 255;
+      expected[o] = Math.round(expected[o] * t + 192 * (1 - t));
+      expected[o + 1] = Math.round(expected[o + 1] * t + 192 * (1 - t));
+      expected[o + 2] = Math.round(expected[o + 2] * t + 192 * (1 - t));
+      expected[o + 3] = 255;
+    }
+  });
+  let outside = 0;
+  for (let i = 0; i < W * H; i++) {
+    if (inside[i]) continue;
+    if (atlas[i * 4] || atlas[i * 4 + 1] || atlas[i * 4 + 2] || atlas[i * 4 + 3]) outside++;
+  }
+  if (outside) fail(`图集槽位外有 ${outside} 个非透明像素（应全部透明）`);
+  const d = diffRGBA(expected, atlas);
+  if (d.n) fail(`图集与 assets/atlas.png 不一致（${d.n} 像素，最大差 ${d.worst}）—— 多半是改了素材没重建`);
 }
 
 /* ---- 3) 导出散图 vs 图集 ---- */
