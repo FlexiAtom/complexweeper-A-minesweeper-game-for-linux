@@ -126,6 +126,9 @@ powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1
 脚本会下载并缓存 SDL3 / SDL3_ttf 的 MinGW 开发包，用 Zig 交叉编译 64 位 Windows 程序，
 把 exe 与运行库放进 `build/dist/`，注入程序图标，并运行两套自检。
 
+下载默认走 `https://ghfast.top/` 镜像；可用 `-SdlMirror <前缀>` 或环境变量 `SDL_MIRROR`
+换镜像，传 `-SdlMirror ''` 则直连 GitHub。已下载的 zip 也可以手动放进 `build/sdl-deps/` 复用。
+
 ## 自检
 
 程序内置两套无窗口自检，覆盖规则判定与界面层的输入 → 状态 → 布局：

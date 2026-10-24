@@ -138,6 +138,10 @@ The script downloads and caches the SDL3 / SDL3_ttf MinGW development packages,
 cross-compiles a 64-bit Windows executable, copies the executable and runtime DLLs to
 `build/dist/`, injects the icon, and runs both self-tests.
 
+Downloads go through the `https://ghfast.top/` mirror by default. Pass
+`-SdlMirror <prefix>` or set `SDL_MIRROR` to use another mirror, or `-SdlMirror ''`
+to download directly from GitHub. Pre-downloaded zips can be placed in `build/sdl-deps/`.
+
 ## Self-tests
 
 The program includes two windowless self-tests covering the rules and the
