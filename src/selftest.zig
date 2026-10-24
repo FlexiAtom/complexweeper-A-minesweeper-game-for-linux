@@ -42,7 +42,7 @@ fn expectedCascade(game: *const g.Game, start: usize, set: *[g.MAX_CELLS]bool) v
             }
         }
     }
-// 连片覆盖 = 连通空白格 ∪ 它们的非雷邻居
+    // 连片覆盖 = 连通空白格 ∪ 它们的非雷邻居
     for (0..game.n) |i| {
         if (!comp[i]) continue;
         set[i] = true;
@@ -97,7 +97,7 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
 
     note(out, "复扫雷 {s} · 规则自检\n==========================\n", .{ui.testAppVersion});
 
-// ---- 1. 随机数确定性 ----
+    // ---- 1. 随机数确定性 ----
     {
         var a: g.Game = .{};
         var b: g.Game = .{};
@@ -118,7 +118,7 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
         note(out, "1 随机数确定性：通过（校验 {d} 项）\n", .{checks});
     }
 
-// ---- 2. 精确配比 ----
+    // ---- 2. 精确配比 ----
     {
         const cases = [_][5]u16{
             .{ 0, 3, 2, 4, 1 },
@@ -144,7 +144,7 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
         note(out, "2 精确配比：{s}\n", .{if (bad == 0) "通过" else "有偏差"});
     }
 
-// ---- 3. 纯实 / 纯虚局面的显示值全是完全平方数 ----
+    // ---- 3. 纯实 / 纯虚局面的显示值全是完全平方数 ----
     {
         var bad: u32 = 0;
         const pure = [_][5]u16{ .{ 0, 5, 5, 0, 0 }, .{ 0, 0, 0, 4, 4 } };
@@ -166,9 +166,9 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
                 }
                 if (first_bad >= 0) {
                     note(out, "  [调试] 请求配比 {d}/{d}/{d}/{d}，实际 type_total {d}/{d}/{d}/{d}，首个非平方格 {d} 的 D={d}，周围雷 {d} 颗\n", .{
-                        tc[1], tc[2], tc[3], tc[4],
-                        game.type_total[1], game.type_total[2], game.type_total[3], game.type_total[4],
-                        first_bad, game.clue[@intCast(first_bad)], game.nbrMineCount(@intCast(first_bad)),
+                        tc[1],              tc[2],                          tc[3],                                  tc[4],
+                        game.type_total[1], game.type_total[2],             game.type_total[3],                     game.type_total[4],
+                        first_bad,          game.clue[@intCast(first_bad)], game.nbrMineCount(@intCast(first_bad)),
                     });
                 }
             }
@@ -177,7 +177,7 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
         note(out, "3 纯实/纯虚不变量：{s}\n", .{if (bad == 0) "通过" else "失败"});
     }
 
-// ---- 4. 连片：与独立洪水填充逐格一致，且绝不翻雷 ----
+    // ---- 4. 连片：与独立洪水填充逐格一致，且绝不翻雷 ----
     {
         var mismatch: u32 = 0;
         var mine_opened: u32 = 0;
@@ -204,7 +204,7 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
                     if (got and game.mine[k] != 0) mine_opened += 1;
                 }
             }
-// 显示 0 绝不连片
+            // 显示 0 绝不连片
             buildBoard(&game, 12, 12, 24, [_]u16{0} ** 5, seed, 70);
             for (0..game.n) |k| {
                 if (game.mine[k] != 0 or game.open[k] != 0) continue;
@@ -228,7 +228,7 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
         note(out, "4 连片展开：空白样本 {d}，显示 0 样本 {d}，不一致 {d}，翻雷 {d}\n", .{ samples, zero_samples, mismatch, mine_opened });
     }
 
-// ---- 4b. 大盘开局连片：栈吃满也不许漏格 ----
+    // ---- 4b. 大盘开局连片：栈吃满也不许漏格 ----
     {
         const shapes = [_]struct { w: u16, h: u16, m: u16 }{
             .{ .w = 40, .h = 30, .m = 1 },
@@ -270,7 +270,7 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
         note(out, "4b 大盘连片：样本 {d}，大连片 {d} 次，一次最多翻开 {d} 格，逐格不一致 {d}\n", .{ samples, big, worst, mismatch });
     }
 
-// ---- 5. 开局必定连片且不踩雷 ----
+    // ---- 5. 开局必定连片且不踩雷 ----
     {
         var bad: u32 = 0;
         for ([_]u32{ 501, 502, 503, 504, 505 }) |seed| {
@@ -284,7 +284,7 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
             if (gm.over) bad += 1;
             if (gm.openedCount() < 9) bad += 1;
             if (!gm.isBlank(start)) bad += 1;
-// 开局后各类雷数已知，且合计 = 总雷数
+            // 开局后各类雷数已知，且合计 = 总雷数
             if (gm.typeSum() != 40) bad += 1;
             for (1..5) |t| {
                 if (gm.type_total[t] == 0 and gm.mines >= 40) bad += 1;
@@ -295,7 +295,7 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
         note(out, "5 开局连片与分类计数：{s}\n", .{if (bad == 0) "通过" else "失败"});
     }
 
-// ---- 6. 判据：与独立实现一致 ----
+    // ---- 6. 判据：与独立实现一致 ----
     {
         var mismatch: u32 = 0;
         var pass: u32 = 0;
@@ -336,7 +336,7 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
         note(out, "6 组合匹配判据：样本 {d}，放行 {d}，不一致 {d}\n", .{ total, pass, mismatch });
     }
 
-// ---- 7. 插旗不限量 + 循环顺序 ----
+    // ---- 7. 插旗不限量 + 循环顺序 ----
     {
         buildBoard(&game, 9, 9, 10, [_]u16{0} ** 5, 701, 40);
         var placed: u32 = 0;
@@ -369,7 +369,7 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
         note(out, "7 插旗不限量：插了 {d} 面，循环 {any}\n", .{ placed, seq });
     }
 
-// ---- 8. 翻开已插旗格：先清旗再翻开 ----
+    // ---- 8. 翻开已插旗格：先清旗再翻开 ----
     {
         buildBoard(&game, 9, 9, 10, [_]u16{0} ** 5, 801, 40);
         var cell: usize = 0;
@@ -381,12 +381,12 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
         }
         _ = game.setFlag(cell, 3);
         expect(out, game.flags_of[3] == 1, "插旗后计数为 1");
-// 旗子保护格子：插了旗就翻不开
+        // 旗子保护格子：插了旗就翻不开
         game.reveal(cell, 0);
         expect(out, game.open[cell] == 0, "插旗的格子翻不开");
         expect(out, game.flag[cell] == 3, "翻不开时旗帜应原样保留");
         expect(out, game.flags_of[3] == 1, "翻不开时计数不动");
-// 连片也不该把旗子吃掉
+        // 连片也不该把旗子吃掉
         var blank: usize = 0;
         var flagged_nbr: usize = 0;
         var found = false;
@@ -411,7 +411,7 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
             expect(out, game.open[flagged_nbr] == 0, "连片展开不该翻开插了旗的格子");
             expect(out, game.flag[flagged_nbr] == 1, "连片展开不该清掉旗子");
         }
-// 撤旗之后才翻得开
+        // 撤旗之后才翻得开
         _ = game.setFlag(cell, 0);
         game.reveal(cell, 0);
         expect(out, game.open[cell] == 1, "撤旗后应能翻开");
@@ -419,15 +419,15 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
         note(out, "8 旗子保护格子（翻不开、连片也不碰）：通过\n", .{});
     }
 
-// ---- 9. 胜负判定 ----
+    // ---- 9. 胜负判定 ----
     {
-// 胜利：翻开全部非雷格即可，旗帜不参与
+        // 胜利：翻开全部非雷格即可，旗帜不参与
         buildBoard(&game, 9, 9, 10, [_]u16{0} ** 5, 901, 40);
         for (0..game.n) |i| {
             if (game.mine[i] == 0 and game.open[i] == 0) game.reveal(i, 0);
         }
         expect(out, game.win and game.over, "翻开所有非雷格必须判胜");
-// 留一个非雷格就不算胜
+        // 留一个非雷格就不算胜
         buildBoard(&game, 9, 9, 10, [_]u16{0} ** 5, 902, 40);
         var left: usize = 0;
         for (0..game.n) |i| {
@@ -454,7 +454,7 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
         note(out, "9 胜负判定：通过\n", .{});
     }
 
-// ---- 10. 展开：判据不过时棋盘不变 ----
+    // ---- 10. 展开：判据不过时棋盘不变 ----
     {
         buildBoard(&game, 12, 12, 24, [_]u16{0} ** 5, 1001, 70);
         var cell: usize = 0;
@@ -485,11 +485,11 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
         note(out, "10 展开门禁：通过\n", .{});
     }
 
-// ---- 11. 闵可夫斯基模式：显示值集合、贴图覆盖、判据 ----
+    // ---- 11. 闵可夫斯基模式：显示值集合、贴图覆盖、判据 ----
     {
-// 枚举 495 种邻域组合（四种雷的颗数 n1..n4，总数 ≤ 8）：两套显示值集合都算一遍。
-// 圆复数模式必须正好得到现有那 24 个值（模型与已发布实现的交叉验证），
-// 闵可夫斯基模式必须正好得到 39 个值，且每个值在图集里都有贴图。
+        // 枚举 495 种邻域组合（四种雷的颗数 n1..n4，总数 ≤ 8）：两套显示值集合都算一遍。
+        // 圆复数模式必须正好得到现有那 24 个值（模型与已发布实现的交叉验证），
+        // 闵可夫斯基模式必须正好得到 39 个值，且每个值在图集里都有贴图。
         var seen_c = [_]bool{false} ** 65;
         var seen_h = [_]bool{false} ** 129;
         var combos: u32 = 0;
@@ -526,7 +526,7 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
             if (!seen_c[D]) cplx_bad += 1;
         }
         expect(out, cplx_bad == 0, "圆复数模式的显示值集合必须正好是 ACHIEVABLE 那 24 个");
-// 19 个模长正负成对 + 一个 0；再核对每个值都有贴图、且贴图没有重复占用
+        // 19 个模长正负成对 + 一个 0；再核对每个值都有贴图、且贴图没有重复占用
         const MAG = [19]i32{ 1, 3, 4, 5, 7, 8, 9, 12, 15, 16, 21, 24, 25, 32, 35, 36, 48, 49, 64 };
         var pair_ok = seen_h[64];
         for (MAG) |m| {
@@ -551,7 +551,7 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
         expect(out, dup == 0, "39 张贴图不该被两个显示值共用");
         note(out, "11 闵可夫斯基显示值集合与贴图覆盖：{s}（组合 {d} 种，闵可夫斯基 {d} 值）\n", .{ if (missing == 0 and dup == 0 and hn == 39) "通过" else "有缺口", combos, hn });
 
-// 显示值算法：a² − b²（圆复数模式是 a² + b²），负值照算，显示成根式加 i
+        // 显示值算法：a² − b²（圆复数模式是 a² + b²），负值照算，显示成根式加 i
         var h: g.Game = .{};
         h.mode = .hyper;
         const clues = [_]struct { t: [4]u8, want: i32 }{
@@ -576,14 +576,14 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
             if (A.hnum_by_D[idx] == 0xFFFF) clue_bad += 1;
         }
         expect(out, clue_bad == 0, "闵可夫斯基显示值必须是 a² − b²（12 组配比逐一核对）");
-// 同一个配比在圆复数模式下应得 a² + b²（这里 a=1、b=2）
+        // 同一个配比在圆复数模式下应得 a² + b²（这里 a=1、b=2）
         h.mode = .complex;
         hyperPlace(&h, .{ 2, 1, 3, 1 }, false);
         expect(out, h.clue[12] == 5, "同一配比在圆复数模式下应是 a² + b²（1+4=5）");
         h.mode = .hyper;
         note(out, "11b 闵可夫斯基显示值算法（a² − b²）：{s}\n", .{if (clue_bad == 0) "通过" else "有偏差"});
 
-// 判据：真值 = 一颗 +1 加一颗 +j（a=1、b=1、共 2 颗，显示值 0）
+        // 判据：真值 = 一颗 +1 加一颗 +j（a=1、b=1、共 2 颗，显示值 0）
         hyperPlace(&h, .{ 1, 0, 1, 0 }, false);
         expect(out, h.clue[12] == 0, "真值配比的显示值应为 0");
         hyperPlace(&h, .{ 1, 0, 1, 0 }, true);
@@ -600,7 +600,7 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
         hyperPlace(&h, .{ 2, 0, 0, 0 }, false);
         hyperPlace(&h, .{ 1, 1, 0, 0 }, true);
         expect(out, !h.matchComboTruth(12), "旗数 2 = 2 但 |a| 不同（2 与 0）仍须拦住");
-// 展开：判据过了就翻开其余未插旗的邻格（这个 5×5 小盘一次可能就翻完 → 顺带判胜，两种都算过）
+        // 展开：判据过了就翻开其余未插旗的邻格（这个 5×5 小盘一次可能就翻完 → 顺带判胜，两种都算过）
         hyperPlace(&h, .{ 1, 0, 1, 0 }, false);
         hyperPlace(&h, .{ 1, 0, 1, 0 }, true);
         h.open[12] = 1;
@@ -619,21 +619,21 @@ pub fn run(out: *std.ArrayList(u8)) u32 {
         note(out, "11c 闵可夫斯基判据（推荐 / 备选两档）：通过\n", .{});
     }
 
-// ---- 12. 判定贴图表：不许有空洞，实雷两个模式共用 ----
+    // ---- 12. 判定贴图表：不许有空洞，实雷两个模式共用 ----
     {
         const tables = [_][5]u16{
-            A.mine_T,  A.hmine_T,
-            A.flag_T,  A.hflag_T,
-            A.boom_T,  A.hboom_T,
-            A.wrong_T, A.hwrong_T,
-            A.right_T, A.hright_T,
+            A.mine_T,      A.hmine_T,
+            A.flag_T,      A.hflag_T,
+            A.boom_T,      A.hboom_T,
+            A.wrong_T,     A.hwrong_T,
+            A.right_T,     A.hright_T,
             A.rightflag_T, A.hrightflag_T,
             A.wrongflag_T, A.hwrongflag_T,
         };
         var bad: u32 = 0;
         for (tables) |t| {
             for (1..5) |k| {
-                if (t[k] >= A.count) bad += 1;      // 越界 = 生成器写错了
+                if (t[k] >= A.count) bad += 1; // 越界 = 生成器写错了
             }
         }
         expect(out, bad == 0, "判定贴图表里每一张都应是合法槽位号");

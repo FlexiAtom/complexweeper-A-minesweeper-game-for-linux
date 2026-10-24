@@ -2412,8 +2412,8 @@ fn dumpState(path: []const u8) void {
     s.writer().print("unmarked    = {d} {d} {d} {d}\n", .{ game.unmarked(1), game.unmarked(2), game.unmarked(3), game.unmarked(4) }) catch {};
     s.writer().print("counterValue= {d} {d} {d} {d}\n", .{ counterValue(1), counterValue(2), counterValue(3), counterValue(4) }) catch {};
     s.writer().print("panelCells  = {d} {d} {d} {d}   timer={d}\n", .{
-        panelCells(false, counterShown(1)), panelCells(true, counterShown(2)),
-        panelCells(true,  counterShown(3)), panelCells(true, counterShown(4)),
+        panelCells(false, counterShown(1)),                            panelCells(true, counterShown(2)),
+        panelCells(true, counterShown(3)),                             panelCells(true, counterShown(4)),
         panelCells(false, if (game.started) timerSeconds() else null),
     }) catch {};
     s.writer().print("started={} over={} win={} elapsed_ms={d}\n", .{ game.started, game.over, game.win, game.elapsed_ms }) catch {};

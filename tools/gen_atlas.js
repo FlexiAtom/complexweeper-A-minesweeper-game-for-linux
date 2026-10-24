@@ -274,7 +274,9 @@ placed.forEach((p, i) => {
 });
 lines.push('};');
 lines.push('');
-lines.push('pub fn rect(i: u16) Rect { return rects[i]; }');
+lines.push('pub fn rect(i: u16) Rect {');
+lines.push('    return rects[i];');
+lines.push('}');
 lines.push('');
 for (const [name, i] of idx) lines.push('pub const ' + name + ': u16 = ' + i + ';');
 lines.push('');
@@ -325,7 +327,6 @@ lines.push('');
 const wb = pickSlot('wrongblank', 'blank');
 lines.push('/// 标错空格子：给不是雷的格子插了旗，失败后显示它（画好之前先退回空白格）');
 lines.push('pub const wrongblank_sprite: u16 = ' + wb + ';');
-lines.push('');
 if (usingFallback.length) {
   const uniq = [...new Set(usingFallback)];
   console.log(`判定贴图还没画（先退回上一档）：${uniq.join(' ')} —— 画好丢进图集就自动接上`);

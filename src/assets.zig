@@ -128,7 +128,9 @@ pub const rects = [_]Rect{
     .{ .x = 144, .y = 112, .w = 16, .h = 16 }, // 115 wrongflag_4
 };
 
-pub fn rect(i: u16) Rect { return rects[i]; }
+pub fn rect(i: u16) Rect {
+    return rects[i];
+}
 
 pub const icon: u16 = 0;
 pub const face_normal: u16 = 1;
@@ -355,4 +357,3 @@ pub const hwrongflag_T = [5]u16{ 0, wrongflag_1, wrongflag_2, hwrongflag_3, hwro
 
 /// 标错空格子：给不是雷的格子插了旗，失败后显示它（画好之前先退回空白格）
 pub const wrongblank_sprite: u16 = wrongblank;
-

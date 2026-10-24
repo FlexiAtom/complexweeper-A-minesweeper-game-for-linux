@@ -54,23 +54,23 @@ pub const Game = struct {
     w: u16 = 9,
     h: u16 = 9,
     n: usize = 81,
-/// 当前玩法模式
+    /// 当前玩法模式
     mode: Mode = .complex,
-/// 闵可夫斯基模式的判据取备选
-/// 默认 false = 推荐判据（|a|、|b| 分别相符，即四种符号组合任选）。见双曲复数模式设计文档 §3。
+    /// 闵可夫斯基模式的判据取备选
+    /// 默认 false = 推荐判据（|a|、|b| 分别相符，即四种符号组合任选）。见双曲复数模式设计文档 §3。
     judge_loose: bool = false,
     mine: [MAX_CELLS]u8 = [_]u8{0} ** MAX_CELLS,
-/// 显示值：圆复数模式存 a²+b²（0…64），闵可夫斯基模式存 a²−b²（−64…64）
+    /// 显示值：圆复数模式存 a²+b²（0…64），闵可夫斯基模式存 a²−b²（−64…64）
     clue: [MAX_CELLS]i16 = [_]i16{-1} ** MAX_CELLS,
     open: [MAX_CELLS]u8 = [_]u8{0} ** MAX_CELLS,
     flag: [MAX_CELLS]u8 = [_]u8{0} ** MAX_CELLS,
     seed: u32 = 1,
     rng: Rng = Rng.init(1),
     mines: u16 = 10,
-/// 各类雷总数（下标 1..4），开局公开
+    /// 各类雷总数（下标 1..4），开局公开
     type_total: [5]u16 = [_]u16{0} ** 5,
     flags_of: [5]u16 = [_]u16{0} ** 5,
-/// 自定义配比（下标 1..4）；全 0 = 类型随机撒
+    /// 自定义配比（下标 1..4）；全 0 = 类型随机撒
     type_count: [5]u16 = [_]u16{0} ** 5,
     started: bool = false,
     over: bool = false,
@@ -91,7 +91,7 @@ pub const Game = struct {
         return r >= 0 and c >= 0 and r < self.h and c < self.w;
     }
 
-/// 8 邻域写到 buf，返回个数
+    /// 8 邻域写到 buf，返回个数
     pub fn nbrs(self: *const Game, cell: usize, buf: *[8]usize) usize {
         const w: i32 = self.w;
         const r: i32 = @intCast(cell / self.w);
@@ -122,7 +122,7 @@ pub const Game = struct {
         return n;
     }
 
-/// 空白格：邻域无雷；只有它连片展开
+    /// 空白格：邻域无雷；只有它连片展开
     pub fn isBlank(self: *const Game, cell: usize) bool {
         return self.mine[cell] == 0 and self.nbrMineCount(cell) == 0;
     }
@@ -133,7 +133,7 @@ pub const Game = struct {
         return s;
     }
 
-/// 该类雷还剩几颗没标（可为负）
+    /// 该类雷还剩几颗没标（可为负）
     pub fn unmarked(self: *const Game, t: usize) i32 {
         return @as(i32, self.type_total[t]) - @as(i32, self.flags_of[t]);
     }
@@ -148,7 +148,7 @@ pub const Game = struct {
         self.rng = Rng.init(self.seed);
     }
 
-/// 新开一局（棋盘等第一次点击再生成）
+    /// 新开一局（棋盘等第一次点击再生成）
     pub fn newGame(self: *Game, seed: u32) void {
         self.n = @as(usize, self.w) * @as(usize, self.h);
         for (0..self.n) |i| {
@@ -171,7 +171,7 @@ pub const Game = struct {
         self.setMsg(.none);
     }
 
-/// 布雷 + 算显示值 + 从开局格连片
+    /// 布雷 + 算显示值 + 从开局格连片
     pub fn genBoard(self: *Game, start_cell: usize) void {
         const N = self.n;
         for (0..N) |i| {
@@ -193,7 +193,7 @@ pub const Game = struct {
                 m += 1;
             }
         }
-// 洗位置
+        // 洗位置
         if (m > 1) {
             var i: usize = m - 1;
             while (i > 0) : (i -= 1) {
@@ -208,7 +208,7 @@ pub const Game = struct {
         const count = @min(if (want > 0) want else @as(usize, self.mines), m);
 
         if (want > 0) {
-// 精确配比：先铺类型序列，再洗一遍
+            // 精确配比：先铺类型序列，再洗一遍
             var list: [MAX_CELLS]u8 = undefined;
             var ln: usize = 0;
             for (1..5) |t| {
@@ -249,7 +249,7 @@ pub const Game = struct {
             var buf: [8]usize = undefined;
             const k = self.nbrs(i, &buf);
             for (buf[0..k]) |j| {
-// 必须跳过空邻居，否则 TYPES[mine[j]-1] 越界
+                // 必须跳过空邻居，否则 TYPES[mine[j]-1] 越界
                 if (self.mine[j] == 0) continue;
                 const t = TYPES[self.mine[j] - 1];
                 a += t[0];
@@ -259,8 +259,8 @@ pub const Game = struct {
         }
     }
 
-/// 邻域按类型统计出的 (a, b)：a = 正实 − 负实，b = 正单位雷 − 负单位雷。
-/// `use_flag` 为真时统计旗帜，否则统计真雷。b 在两个模式里算法一样，只是单位不同（i / j）。
+    /// 邻域按类型统计出的 (a, b)：a = 正实 − 负实，b = 正单位雷 − 负单位雷。
+    /// `use_flag` 为真时统计旗帜，否则统计真雷。b 在两个模式里算法一样，只是单位不同（i / j）。
     pub fn sumsOf(self: *const Game, cell: usize, use_flag: bool) [2]i32 {
         var a: i32 = 0;
         var b: i32 = 0;
@@ -276,7 +276,7 @@ pub const Game = struct {
         return .{ a, b };
     }
 
-/// 邻域里的旗帜数
+    /// 邻域里的旗帜数
     pub fn nbrFlagCount(self: *const Game, cell: usize) usize {
         var buf: [8]usize = undefined;
         const k = self.nbrs(cell, &buf);
@@ -294,7 +294,7 @@ pub const Game = struct {
         }
     }
 
-/// 连片翻开：只在空白格上扩散，返回新翻开的格数
+    /// 连片翻开：只在空白格上扩散，返回新翻开的格数
     pub fn cascadeOpen(self: *Game, seeds: []const usize) usize {
         var stack: [MAX_CELLS]usize = undefined;
         var queued = [_]bool{false} ** MAX_CELLS;
@@ -310,7 +310,7 @@ pub const Game = struct {
         while (sp > 0) {
             sp -= 1;
             const i = stack[sp];
-// 插旗格连片绕开
+            // 插旗格连片绕开
             if (self.open[i] != 0 or self.mine[i] != 0 or self.flag[i] != 0) continue;
             self.open[i] = 1;
             opened += 1;
@@ -318,7 +318,7 @@ pub const Game = struct {
                 var buf: [8]usize = undefined;
                 const k = self.nbrs(i, &buf);
                 for (buf[0..k]) |j| {
-// 查重标在压栈时
+                    // 查重标在压栈时
                     if (!queued[j] and self.open[j] == 0 and self.mine[j] == 0 and self.flag[j] == 0) {
                         queued[j] = true;
                         std.debug.assert(sp < stack.len);
@@ -344,7 +344,7 @@ pub const Game = struct {
         self.setMsg(.none);
     }
 
-/// 插 / 改 / 清旗（不限量）
+    /// 插 / 改 / 清旗（不限量）
     pub fn setFlag(self: *Game, cell: usize, t: u8) bool {
         if (t > 4) return false;
         const old = self.flag[cell];
@@ -355,7 +355,7 @@ pub const Game = struct {
         return true;
     }
 
-/// 右键循环：空 → +1 → −1 → +i → −i → 空
+    /// 右键循环：空 → +1 → −1 → +i → −i → 空
     pub fn cycleFlag(self: *Game, cell: usize) bool {
         if (self.over or self.open[cell] != 0) return false;
         const next: u8 = @intCast((@as(usize, self.flag[cell]) + 1) % 5);
@@ -364,7 +364,7 @@ pub const Game = struct {
         return true;
     }
 
-/// 翻开一格；插了旗的翻不开
+    /// 翻开一格；插了旗的翻不开
     pub fn reveal(self: *Game, cell: usize, now_ms: u32) void {
         _ = now_ms;
         if (self.over or self.open[cell] != 0 or self.flag[cell] != 0) return;
@@ -383,10 +383,10 @@ pub const Game = struct {
         self.checkWin();
     }
 
-/// 判据：旗帜数 = 邻域真实雷数，且"显示值区分不出来的差别"允许存在。
-///   圆复数模式：显示值 a²+b² 看不出整体取负、也看不出实虚交换 → 允许实虚比例等于真值比例或其倒数。
-///   闵可夫斯基模式：显示值 a²−b² 看不出 a、b 各自取负（交换会变号，藏不住）→ 要求 |a|、|b| 分别相符，
-///             也就是四种符号组合任选；judge_loose 时只要求 a²−b² 相同（备选判据，仅 D=0、±16 有别）。
+    /// 判据：旗帜数 = 邻域真实雷数，且"显示值区分不出来的差别"允许存在。
+    ///   圆复数模式：显示值 a²+b² 看不出整体取负、也看不出实虚交换 → 允许实虚比例等于真值比例或其倒数。
+    ///   闵可夫斯基模式：显示值 a²−b² 看不出 a、b 各自取负（交换会变号，藏不住）→ 要求 |a|、|b| 分别相符，
+    ///             也就是四种符号组合任选；judge_loose 时只要求 a²−b² 相同（备选判据，仅 D=0、±16 有别）。
     pub fn matchComboTruth(self: *const Game, cell: usize) bool {
         if (self.nbrMineCount(cell) != self.nbrFlagCount(cell)) return false;
         if (self.mode == .hyper) {
@@ -412,7 +412,7 @@ pub const Game = struct {
         return (gp + gv == P + V) and ((gp == P and gv == V) or (gp == V and gv == P));
     }
 
-/// 展开：判据过了就翻开周围未插旗的格
+    /// 展开：判据过了就翻开周围未插旗的格
     pub fn tryExpand(self: *Game, cell: usize) void {
         if (self.over or self.open[cell] == 0 or self.mine[cell] != 0) return;
         var buf: [8]usize = undefined;
@@ -490,7 +490,7 @@ pub const Game = struct {
         return k;
     }
 
-/// 合法配比（自检用）
+    /// 合法配比（自检用）
     pub fn typeSum(self: *const Game) usize {
         var s: usize = 0;
         for (1..5) |t| s += self.type_total[t];
