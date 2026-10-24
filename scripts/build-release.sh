@@ -99,6 +99,7 @@ cp "$appdir/complexweeper.png" "$appdir/usr/share/icons/hicolor/256x256/apps/com
 ln -s complexweeper.png "$appdir/.DirIcon"
 cp README.md README.en.md LICENSE ASSET-NOTICE.md "$appdir/usr/share/doc/complexweeper/"
 cp assets/fonts/OFL.txt "$appdir/usr/share/doc/complexweeper/FONT-OFL.txt"
+cp -r assets/licenses "$appdir/usr/share/doc/complexweeper/licenses"
 
 cat > "$appdir/complexweeper.desktop" <<'EOF'
 [Desktop Entry]
@@ -208,6 +209,7 @@ mkdir -p "$win_stage"
 cp zig-out/bin/complexweeper.exe "$win_stage/"
 cp "$sdl_dll" "$ttf_dll" "$win_stage/"
 cp assets/fonts/OFL.txt "$win_stage/FONT-OFL.txt"
+cp -r assets/licenses "$win_stage/licenses"
 
 node tools/set_icon.js "$win_stage/complexweeper.exe" "$win_stage/complexweeper-icon.exe"
 mv "$win_stage/complexweeper-icon.exe" "$win_stage/complexweeper.exe"
@@ -239,6 +241,7 @@ echo "[4/4] 打包…"
 zip -j "$release/complexweeper-$version-win64.zip" \
     "$win_stage/complexweeper.exe" "$win_stage/SDL3.dll" "$win_stage/SDL3_ttf.dll" \
     "$win_stage/FONT-OFL.txt" README.md README.en.md LICENSE ASSET-NOTICE.md >/dev/null
+(cd "$win_stage" && zip -r "$release/complexweeper-$version-win64.zip" licenses >/dev/null)
 
 (
     cd "$release"

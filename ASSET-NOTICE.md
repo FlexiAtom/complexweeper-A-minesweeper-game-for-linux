@@ -55,9 +55,25 @@
 
 ## 五、第三方运行库
 
-程序动态链接 [SDL3](https://github.com/libsdl-org/SDL) 与
-[SDL3_ttf](https://github.com/libsdl-org/SDL_ttf)，两者均按 zlib 许可证发布；
-Windows 发行包会附带对应的运行库 DLL。
+程序动态链接 SDL3 与 SDL3_ttf，AppImage 还打包了字体渲染所需的间接依赖。
+这些库不属于本仓库，按各自的许可证原样分发，完整文本见 `assets/licenses/`
+（发行包中为 `licenses/`，AppImage 内位于 `usr/share/doc/complexweeper/licenses/`）：
+
+| 库 | 许可证 |
+| --- | --- |
+| SDL3、SDL3_ttf | Zlib |
+| HarfBuzz | MIT（Old MIT） |
+| FreeType | FTL（FreeType License） |
+| GLib | LGPL-2.1-or-later |
+| Graphite2 | LGPL-2.1-or-later |
+| PCRE2 | BSD-3-Clause WITH PCRE2-exception |
+| libpng | libpng-2.0 |
+| zlib | Zlib |
+| bzip2 | bzip2-1.0.6 |
+| Brotli | MIT |
+
+Windows 发行包只附带 `SDL3.dll` 与 `SDL3_ttf.dll`；Linux AppImage 打包上表全部运行库。
+具体版本取决于构建主机，`assets/licenses/THIRD-PARTY.md` 记录了各库的上游地址与许可证文件。
 
 ## 商标
 

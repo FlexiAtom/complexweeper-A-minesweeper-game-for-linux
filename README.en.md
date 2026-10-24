@@ -236,5 +236,7 @@ The code is licensed under GPL-3.0 (see `LICENSE`). The rights to the "original
 Minesweeper image assets" belong to Microsoft and are not covered by the GPL-3.0 license.
 See [`ASSET-NOTICE.md`](ASSET-NOTICE.md) for the detailed asset licensing status.
 
-The program dynamically links SDL3 and SDL3_ttf (both zlib licensed); the runtime libraries
-are bundled with the Windows release.
+The program dynamically links SDL3 and SDL3_ttf (both zlib licensed). The Windows
+release bundles those two runtime libraries; the Linux AppImage also bundles the
+indirect font-rendering dependencies. Third-party license texts are in
+[`assets/licenses/`](assets/licenses/), and inside release packages under `licenses/`.

@@ -215,4 +215,6 @@ build.zig      Zig 构建入口
 代码按 GPL-3.0 授权（见 `LICENSE`）。上文中“扫雷原始图像素材”的权利属于 Microsoft，
 不在 GPL-3.0 的授权范围内。素材的详细授权状态见 [`ASSET-NOTICE.md`](ASSET-NOTICE.md)。
 
-程序动态链接 SDL3 与 SDL3_ttf（均为 zlib 许可），运行时所需的库随 Windows 发行包一同提供。
+程序动态链接 SDL3 与 SDL3_ttf（均为 zlib 许可）。Windows 发行包附带这两个运行库；
+Linux AppImage 还打包了字体渲染所需的间接依赖。第三方许可证文本见
+[`assets/licenses/`](assets/licenses/)，发行包中位于 `licenses/`。
