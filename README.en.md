@@ -85,11 +85,14 @@ Best times, sound and color settings are stored in the per-user data directory:
 
 ## Download
 
-Windows builds are available under [Releases](../../releases).
-The archive contains `complexweeper.exe` together with the SDL3 runtime libraries
-(`SDL3.dll`, `SDL3_ttf.dll`). Unzip and run; no installation is required.
+Release packages are published under [Releases](../../releases):
 
-Linux builds are available as CI artifacts, or you can build from source as described below.
+- Windows: the archive contains `complexweeper.exe` together with the SDL3 runtime
+  libraries (`SDL3.dll`, `SDL3_ttf.dll`). Unzip and run; no installation is required.
+- Linux: the archive contains the `complexweeper` executable. The system must provide
+  the SDL3 / SDL3_ttf runtime libraries, for example `sdl3` and `sdl3_ttf` on Arch.
+
+Release packages are built by local scripts, not CI.
 
 ## Building from source
 
@@ -97,7 +100,7 @@ Requirements:
 
 - [Zig](https://ziglang.org/download/) 0.14.1
 - SDL3 3.4.18 and SDL3_ttf 3.2.2 development packages
-- Node.js (optional; only needed to regenerate the atlas from `assets/` — generated files are committed)
+- Node.js (needed for release packaging; optional for a normal build — generated files are committed)
 - A CJK font (Noto Sans CJK or WenQuanYi on Linux; Windows system fonts are fine)
 
 ### Linux
@@ -142,6 +145,33 @@ Downloads go through the `https://ghfast.top/` mirror by default. Pass
 `-SdlMirror <prefix>` or set `SDL_MIRROR` to use another mirror, or `-SdlMirror ''`
 to download directly from GitHub. Pre-downloaded zips can be placed in `build/sdl-deps/`.
 
+### Local release packages
+
+On a Linux host, build both platform packages locally without CI:
+
+```bash
+./scripts/build-release.sh
+```
+
+The script regenerates the atlas, builds the native Linux version and cross-compiles the
+Windows x86_64 version, runs both self-tests (the Windows tests require Wine), and writes
+to `build/release/`:
+
+```text
+complexweeper-<version>-linux-x86_64.tar.gz
+complexweeper-<version>-win64.zip
+SHA256SUMS
+```
+
+SDL downloads use the `https://ghfast.top/` mirror by default; override with `SDL_MIRROR`.
+Pass `--no-test` to skip the self-tests. Upload to GitHub Releases with:
+
+```bash
+./scripts/upload-release.sh v<version>
+```
+
+The current commit must already be pushed to GitHub, or a release with the same tag must exist.
+
 ## Self-tests
 
 The program includes two windowless self-tests covering the rules and the
@@ -152,7 +182,7 @@ input → state → layout path of the UI:
 ./build/complexweeper --uitest build/uitest.txt
 ```
 
-Each report prints the number of passes and any failures; the build scripts and CI fail
+Each report prints the number of passes and any failures; the build scripts fail
 if either suite fails.
 
 ## Project layout
@@ -161,8 +191,7 @@ if either suite fails.
 src/           Zig sources (UI/platform layer, rules, audio, fonts, preferences)
 assets/        Atlas images (color/mono) and slot table
 tools/         Asset tools for atlas, sounds and icon (Node.js)
-scripts/       Linux / Windows build scripts
-.github/       CI build and release workflows
+scripts/       Linux / Windows build and release scripts
 build.zig      Zig build entry point
 ```
 
