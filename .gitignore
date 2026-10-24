@@ -3,5 +3,3 @@ zig-out/
 .zig-cache/
 complexweeper.exe
 complexweeper-*.exe
-src/atlas.bin
-src/assets.zig

@@ -1,6 +1,6 @@
 name: release
 
-# 推 v* 标签 → 构建 → 建 Release 并附上 exe（中文名 + 一个纯 ASCII 名，省得下载链接被转义）
+# 推 v* 标签 → 构建 Windows 包 → 建 Release 并附上 zip（exe + SDL3 运行库）
 on:
   push:
     tags: ['v*']
@@ -40,23 +40,30 @@ jobs:
         shell: pwsh
         run: ./scripts/build-windows.ps1
 
+      - name: 打包
+        shell: pwsh
+        run: |
+          $v = [regex]::Match((Get-Content 'src/main.zig' -Raw -Encoding UTF8), 'const APP_VERSION = "([0-9]+\.[0-9]+\.[0-9]+)";').Groups[1].Value
+          if (-not $v) { throw '读不到 APP_VERSION' }
+          $zip = "complexweeper-$v-win64.zip"
+          Compress-Archive -Path 'build/dist/*' -DestinationPath $zip -Force
+          if (-not (Test-Path $zip)) { throw "打包失败：$zip" }
+
       - name: 发 Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
         run: |
           $v = [regex]::Match((Get-Content 'src/main.zig' -Raw -Encoding UTF8), 'const APP_VERSION = "([0-9]+\.[0-9]+\.[0-9]+)";').Groups[1].Value
           if (-not $v) { throw '读不到 APP_VERSION' }
-          $exe = "complexweeper-$v.exe"
-          if (-not (Test-Path $exe)) { throw "找不到产物：$exe" }
-          $ascii = "complexweeper-$v-win64.exe"
-          Copy-Item $exe $ascii -Force
-          $tag = "${{ github.ref_name }}"
+          $zip = "complexweeper-$v-win64.zip"
+          $tag = $env:TAG
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag $ascii --clobber
+            gh release upload $tag $zip --clobber
           } else {
-            gh release create $tag $ascii `
+            gh release create $tag $zip `
               --title "复扫雷 Complexweeper $v" `
               --generate-notes `
               --verify-tag

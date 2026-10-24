@@ -1,6 +1,6 @@
 name: build
 
-# push / PR 都构建一遍，附件里给出 exe 与两份自检报告
+# push / PR 都构建一遍，附件里给出可运行包与两份自检报告
 on:
   push:
     branches: [main]
@@ -56,9 +56,40 @@ jobs:
       - name: 上传产物与自检报告
         uses: actions/upload-artifact@v5
         with:
-          name: complexweeper-${{ github.sha }}
+          name: complexweeper-windows-${{ github.sha }}
           path: |
-            complexweeper*.exe
+            build/dist
+            build/selftest.txt
+            build/uitest.txt
+          if-no-files-found: error
+
+  linux:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: 装依赖
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm base-devel git nodejs curl xz pkgconf sdl3 sdl3_ttf
+
+      - uses: actions/checkout@v5
+
+      - name: 装 Zig 0.14.1
+        run: |
+          curl -fsSL -o /tmp/zig.tar.xz https://ziglang.org/download/0.14.1/zig-x86_64-linux-0.14.1.tar.xz
+          tar -C /usr/local -xf /tmp/zig.tar.xz
+          ln -sf /usr/local/zig-x86_64-linux-0.14.1/zig /usr/local/bin/zig
+          zig version
+
+      - name: 构建 + 两套自检
+        run: ./scripts/build-linux.sh
+
+      - name: 上传产物与自检报告
+        uses: actions/upload-artifact@v5
+        with:
+          name: complexweeper-linux-${{ github.sha }}
+          path: |
+            build/complexweeper
             build/selftest.txt
             build/uitest.txt
           if-no-files-found: error
